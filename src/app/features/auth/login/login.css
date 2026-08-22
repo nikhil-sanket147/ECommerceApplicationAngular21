@@ -1,118 +1,172 @@
-.login-container {
+:host {
+  display: block;
+  width: 100%;
+}
+
+.auth-wrapper {
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: calc(100vh - 120px);
-  padding: 1.5rem;
+  height: 100vh;
+  padding: 1rem;
+  background: radial-gradient(circle at top, #f3f4f6 0%, #e5e7eb 100%);
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 400px;
+  background: #ffffff;
+  padding: 1.75rem 1.5rem;
+  border-radius: 14px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 
+              0 8px 10px -6px rgba(0, 0, 0, 0.03),
+              0 0 0 1px rgba(0, 0, 0, 0.04);
   box-sizing: border-box;
 }
 
-.login-card {
-  width: 100%;
-  max-width: 420px;
-  background: #ffffff;
-  padding: 2.5rem;
-  border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
-  border: 1px solid #e5e7eb;
+.auth-header {
+  text-align: center;
+  margin-bottom: 1.25rem;
 }
 
-.login-card h2 {
-  margin: 0 0 0.5rem 0;
-  font-size: 1.75rem;
+.auth-icon {
+  width: 40px;
+  height: 40px;
+  margin: 0 auto 0.5rem;
+  background-color: #eff6ff;
+  color: #2563eb;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.auth-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.auth-header h2 {
+  margin: 0 0 0.25rem 0;
+  font-size: 1.4rem;
   font-weight: 700;
   color: #111827;
+  letter-spacing: -0.02em;
 }
 
-.subtitle {
-  margin: 0 0 1.5rem 0;
+.auth-header p {
+  margin: 0;
   color: #6b7280;
-  font-size: 0.95rem;
+  font-size: 0.85rem;
 }
 
-.alert-error {
+.alert-danger {
   background-color: #fef2f2;
-  border: 1px solid #fecaca;
+  border: 1px solid #fee2e2;
   color: #b91c1c;
-  padding: 0.75rem 1rem;
+  padding: 0.5rem 0.75rem;
   border-radius: 6px;
-  font-size: 0.9rem;
-  margin-bottom: 1.25rem;
+  font-size: 0.82rem;
+  margin-bottom: 1rem;
 }
 
 .form-group {
-  margin-bottom: 1.25rem;
+  margin-bottom: 1rem;
   display: flex;
   flex-direction: column;
 }
 
 .form-group label {
-  margin-bottom: 0.4rem;
-  font-size: 0.9rem;
+  margin-bottom: 0.3rem;
+  font-size: 0.82rem;
   font-weight: 600;
   color: #374151;
 }
 
 .form-group input {
-  padding: 0.75rem 0.85rem;
-  font-size: 0.95rem;
+  width: 100%;
+  padding: 0.65rem 0.8rem;
+  font-size: 0.9rem;
+  color: #1f2937;
+  background-color: #f9fafb;
   border: 1px solid #d1d5db;
   border-radius: 6px;
   outline: none;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  box-sizing: border-box;
+  transition: all 0.2s ease-in-out;
+}
+
+.form-group input::placeholder {
+  color: #9ca3af;
 }
 
 .form-group input:focus {
+  background-color: #ffffff;
   border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
 }
 
-.form-group input.invalid {
-  border-color: #dc2626;
+.form-group input.is-invalid {
+  background-color: #ffffff;
+  border-color: #ef4444;
 }
 
-.field-error {
-  margin-top: 0.35rem;
-  font-size: 0.8rem;
+.form-group input.is-invalid:focus {
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.12);
+}
+
+.error-message {
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
   color: #dc2626;
 }
 
-.submit-btn {
+.btn-submit {
   width: 100%;
-  padding: 0.85rem;
+  padding: 0.7rem 1rem;
   background-color: #2563eb;
   color: #ffffff;
   border: none;
   border-radius: 6px;
-  font-size: 1rem;
+  font-size: 0.92rem;
   font-weight: 600;
   cursor: pointer;
-  margin-top: 0.5rem;
-  transition: background-color 0.2s, opacity 0.2s;
+  margin-top: 0.25rem;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  transition: all 0.2s ease-in-out;
 }
 
-.submit-btn:hover:not(:disabled) {
+.btn-submit:hover:not(:disabled) {
   background-color: #1d4ed8;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
 }
 
-.submit-btn:disabled {
-  opacity: 0.6;
+.btn-submit:disabled {
+  opacity: 0.55;
   cursor: not-allowed;
 }
 
-.footer-links {
-  margin-top: 1.5rem;
+.auth-footer {
+  margin-top: 1.25rem;
   text-align: center;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   color: #6b7280;
+  border-top: 1px solid #f3f4f6;
+  padding-top: 0.85rem;
 }
 
-.footer-links a {
+.auth-footer p {
+  margin: 0;
+}
+
+.auth-footer a {
   color: #2563eb;
   text-decoration: none;
   font-weight: 600;
 }
 
-.footer-links a:hover {
+.auth-footer a:hover {
   text-decoration: underline;
 }
