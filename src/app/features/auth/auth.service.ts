@@ -6,10 +6,11 @@ import { environment } from '../../../environments/environment';
 import {
   LoginRequest,
   LoginResponseDTO,
-  RegisterRequest,
   ForgotPasswordRequest,
   ResetPasswordRequest,
-  AuthResponse
+  AuthResponse,
+  RegisterRequestDTO,
+  ApiResponse
 } from '../../core/models/auth.model';
 
 @Injectable({
@@ -47,6 +48,10 @@ private http = inject(HttpClient);
       })
     );
   }
+
+  register(dto: RegisterRequestDTO): Observable<ApiResponse> {
+  return this.http.post<ApiResponse>(`${this.apiUrl}/register`, dto);
+}
 
   logout(): void {
     const refreshToken = this.getRefreshToken();

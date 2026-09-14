@@ -1,12 +1,13 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router, ActivatedRoute } from '@angular/router';
+import { FormBuilder, FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
+import { Router, ActivatedRoute, RouterLink } from '@angular/router';
 import { AuthService } from '../auth.service';
 
 @Component({
   selector: 'app-login',
-  imports: [ReactiveFormsModule],
+  standalone: true,
+  imports: [ReactiveFormsModule, RouterLink],
   templateUrl: './login.html',
   styleUrl: './login.css',
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -25,12 +26,12 @@ export class Login {
     password: ['', [Validators.required, Validators.minLength(6)]]
   });
 
-  get email() {
-    return this.loginForm.get('email');
+  get email(): FormControl<string> {
+    return this.loginForm.controls.email;
   }
 
-  get password() {
-    return this.loginForm.get('password');
+  get password(): FormControl<string> {
+    return this.loginForm.controls.password;
   }
 
   onSubmit(): void {
@@ -52,15 +53,11 @@ export class Login {
       },
       error: (err: HttpErrorResponse) => {
         this.isLoading.set(false);
-        
-        // Catches standard ASP.NET Core ProblemDetails or custom error objects
-        if (err.status === 401 || err.status === 400) {
-          this.errorMessage.set(err.error?.message || err.error?.title || 'Invalid email or password.');
-        } else if (err.status === 0) {
-          this.errorMessage.set('Cannot connect to the server. Check CORS configuration or API status.');
-        } else {
-          this.errorMessage.set('An unexpected error occurred. Please try again later.');
-        }
+        const message =
+          typeof err.error === 'object' && err.error !== null && 'message' in err.error
+            ? String(err.error.message)
+            : 'Invalid email or password.';
+        this.errorMessage.set(message);
       }
     });
   }

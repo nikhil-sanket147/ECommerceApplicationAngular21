@@ -1,0 +1,24 @@
+<div class="product-container">
+  <header class="product-header">
+    <div>
+      <h1>Product Catalog</h1>
+      <p>Browse our collection</p>
+    </div>
+    <button (click)="onLogout()" class="btn-logout">Logout</button>
+  </header>
+
+  <div class="product-grid">
+    @for (product of products(); track product.id) {
+      <div class="product-card">
+        <h3>{{ product.name }}</h3>
+        <p class="description">{{ product.description }}</p>
+        <div class="card-footer">
+          <span class="price">${{ product.price }}</span>
+          <button class="btn-cart">Add to Cart</button>
+        </div>
+      </div>
+    } @empty {
+      <p class="empty-state">No products found.</p>
+    }
+  </div>
+</div>

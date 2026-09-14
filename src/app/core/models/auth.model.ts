@@ -8,11 +8,16 @@ export interface LoginResponseDTO {
   refreshToken: string;
 }
 
-export interface RegisterRequest {
-  fullName: string;
+export interface RegisterRequestDTO {
   email: string;
   password: string;
-  confirmPassword: string;
+  confirmPassword?: string;
+  fullName?: string;
+}
+
+export interface ApiResponse<T = unknown> {
+  message: string;
+  data?: T;
 }
 
 export interface ForgotPasswordRequest {

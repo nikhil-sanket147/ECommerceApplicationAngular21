@@ -1,33 +1,22 @@
 <div class="auth-wrapper">
   <div class="auth-card">
     <div class="auth-header">
-      <h2>Create Account</h2>
+      <div class="auth-icon" aria-hidden="true">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M19 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0ZM4 19.235v-.11a6.375 6.375 0 0 1 12.75 0v.109A12.318 12.318 0 0 1 10.374 21c-2.331 0-4.512-.645-6.374-1.765Z" />
+        </svg>
+      </div>
+      <h1 id="register-title">Create Account</h1>
       <p>Sign up to start shopping</p>
     </div>
 
     @if (errorMessage(); as error) {
-      <div class="alert alert-danger" role="alert">
+      <div class="alert alert-danger" role="alert" aria-live="polite">
         {{ error }}
       </div>
     }
 
-    <form [formGroup]="registerForm" (ngSubmit)="onSubmit()" novalidate>
-      <div class="form-group">
-        <label for="fullName">Full Name</label>
-        <input
-          id="fullName"
-          type="text"
-          formControlName="fullName"
-          placeholder="John Doe"
-          [class.is-invalid]="fullName?.invalid && fullName?.touched"
-        />
-        @if (fullName?.invalid && fullName?.touched) {
-          <div class="error-message">
-            <span>Full name is required.</span>
-          </div>
-        }
-      </div>
-
+    <form [formGroup]="registerForm" (ngSubmit)="onSubmit()" aria-labelledby="register-title" novalidate>
       <div class="form-group">
         <label for="email">Email Address</label>
         <input
@@ -35,11 +24,21 @@
           type="email"
           formControlName="email"
           placeholder="name@example.com"
-          [class.is-invalid]="email?.invalid && email?.touched"
+          autocomplete="email"
+          inputmode="email"
+          required
+          [attr.aria-invalid]="email.invalid && email.touched"
+          [attr.aria-describedby]="email.invalid && email.touched ? 'email-error' : null"
+          [class.is-invalid]="email.invalid && email.touched"
         />
-        @if (email?.invalid && email?.touched) {
-          <div class="error-message">
-            <span>Valid email is required.</span>
+        @if (email.invalid && email.touched) {
+          <div class="error-message" id="email-error">
+            @if (email.hasError('required')) {
+              <span>Email is required.</span>
+            }
+            @if (email.hasError('email')) {
+              <span>Please enter a valid email address.</span>
+            }
           </div>
         }
       </div>
@@ -51,11 +50,20 @@
           type="password"
           formControlName="password"
           placeholder="At least 6 characters"
-          [class.is-invalid]="password?.invalid && password?.touched"
+          autocomplete="new-password"
+          required
+          [attr.aria-invalid]="password.invalid && password.touched"
+          [attr.aria-describedby]="password.invalid && password.touched ? 'password-error' : null"
+          [class.is-invalid]="password.invalid && password.touched"
         />
-        @if (password?.invalid && password?.touched) {
-          <div class="error-message">
-            <span>Password must be at least 6 characters.</span>
+        @if (password.invalid && password.touched) {
+          <div class="error-message" id="password-error">
+            @if (password.hasError('required')) {
+              <span>Password is required.</span>
+            }
+            @if (password.hasError('minlength')) {
+              <span>Password must be at least 6 characters.</span>
+            }
           </div>
         }
       </div>
@@ -67,20 +75,33 @@
           type="password"
           formControlName="confirmPassword"
           placeholder="Re-enter password"
-          [class.is-invalid]="(confirmPassword?.invalid || registerForm.hasError('passwordMismatch')) && confirmPassword?.touched"
+          autocomplete="new-password"
+          required
+          [attr.aria-invalid]="(confirmPassword.invalid || registerForm.hasError('passwordMismatch')) && confirmPassword.touched"
+          [attr.aria-describedby]="(confirmPassword.invalid || registerForm.hasError('passwordMismatch')) && confirmPassword.touched ? 'confirm-error' : null"
+          [class.is-invalid]="(confirmPassword.invalid || registerForm.hasError('passwordMismatch')) && confirmPassword.touched"
         />
-        @if (registerForm.hasError('passwordMismatch') && confirmPassword?.touched) {
-          <div class="error-message">
-            <span>Passwords do not match.</span>
+        @if (confirmPassword.touched) {
+          <div class="error-message" id="confirm-error">
+            @if (confirmPassword.hasError('required')) {
+              <span>Please confirm your password.</span>
+            } @else if (registerForm.hasError('passwordMismatch')) {
+              <span>Passwords do not match.</span>
+            }
           </div>
         }
       </div>
 
-      <button type="submit" class="btn-submit" [disabled]="registerForm.invalid || isLoading()">
+      <button
+        type="submit"
+        class="btn-submit"
+        [disabled]="registerForm.invalid || isLoading()"
+        [attr.aria-busy]="isLoading()"
+      >
         @if (isLoading()) {
           <span>Creating account...</span>
         } @else {
-          <span>Register</span>
+          <span>Create Account</span>
         }
       </button>
     </form>

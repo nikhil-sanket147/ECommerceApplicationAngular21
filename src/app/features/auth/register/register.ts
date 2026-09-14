@@ -1,12 +1,23 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
-import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, ValidatorFn, Validators } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import {
+  AbstractControl,
+  FormBuilder,
+  FormControl,
+  ReactiveFormsModule,
+  ValidationErrors,
+  ValidatorFn,
+  Validators
+} from '@angular/forms';
+import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../auth.service';
 
-export const passwordMatchValidator: ValidatorFn = (control: AbstractControl): ValidationErrors | null => {
+export const passwordMatchValidator: ValidatorFn = (
+  control: AbstractControl
+): ValidationErrors | null => {
   const password = control.get('password');
   const confirmPassword = control.get('confirmPassword');
+
   return password && confirmPassword && password.value !== confirmPassword.value
     ? { passwordMismatch: true }
     : null;
@@ -30,7 +41,6 @@ export class Register {
 
   registerForm = this.fb.nonNullable.group(
     {
-      fullName: ['', [Validators.required, Validators.minLength(2)]],
       email: ['', [Validators.required, Validators.email]],
       password: ['', [Validators.required, Validators.minLength(6)]],
       confirmPassword: ['', [Validators.required]]
@@ -38,10 +48,17 @@ export class Register {
     { validators: passwordMatchValidator }
   );
 
-  get fullName() { return this.registerForm.get('fullName'); }
-  get email() { return this.registerForm.get('email'); }
-  get password() { return this.registerForm.get('password'); }
-  get confirmPassword() { return this.registerForm.get('confirmPassword'); }
+  get email(): FormControl<string> {
+    return this.registerForm.controls.email;
+  }
+
+  get password(): FormControl<string> {
+    return this.registerForm.controls.password;
+  }
+
+  get confirmPassword(): FormControl<string> {
+    return this.registerForm.controls.confirmPassword;
+  }
 
   onSubmit(): void {
     if (this.registerForm.invalid) {
@@ -52,15 +69,23 @@ export class Register {
     this.isLoading.set(true);
     this.errorMessage.set(null);
 
-    // this.authService.register(this.registerForm.getRawValue()).subscribe({
-    //   next: () => {
-    //     this.isLoading.set(false);
-    //     this.router.navigate(['/login'], { queryParams: { registered: 'true' } });
-    //   },
-    //   error: (err: HttpErrorResponse) => {
-    //     this.isLoading.set(false);
-    //     this.errorMessage.set(err.error?.message || 'Registration failed.');
-    //   }
-    // });
+    const { email, password } = this.registerForm.getRawValue();
+
+    this.authService.register({ email, password }).subscribe({
+      next: () => {
+        this.isLoading.set(false);
+        this.router.navigate(['/login'], {
+          queryParams: { registered: 'true' }
+        });
+      },
+      error: (err: HttpErrorResponse) => {
+        this.isLoading.set(false);
+        const message =
+          typeof err.error === 'object' && err.error !== null && 'message' in err.error
+            ? String(err.error.message)
+            : 'Registration failed. Please check your details and try again.';
+        this.errorMessage.set(message);
+      }
+    });
   }
 }
