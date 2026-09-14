@@ -1,22 +1,18 @@
 import { HttpInterceptorFn } from '@angular/common/http';
-import { inject, PLATFORM_ID } from '@angular/core';
-import { isPlatformBrowser } from '@angular/common';
+import { inject } from '@angular/core';
+import { AuthService } from '../../features/auth/auth.service';
 
 export const jwtInterceptor: HttpInterceptorFn = (req, next) => {
-  const platformId = inject(PLATFORM_ID);
+  const authService = inject(AuthService);
+  const token = authService.getAccessToken();
 
-  // Ensure localStorage is accessed only in the browser (SSR-safe)
-  if (isPlatformBrowser(platformId)) {
-    const token = localStorage.getItem('token');
-
-    if (token) {
-      const clonedRequest = req.clone({
-        setHeaders: {
-          Authorization: `Bearer ${token}`
-        }
-      });
-      return next(clonedRequest);
-    }
+  if (token) {
+    const cloned = req.clone({
+      setHeaders: {
+        Authorization: `Bearer ${token}`
+      }
+    });
+    return next(cloned);
   }
 
   return next(req);

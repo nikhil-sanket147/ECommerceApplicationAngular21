@@ -52,11 +52,15 @@ export class Login {
       },
       error: (err: HttpErrorResponse) => {
         this.isLoading.set(false);
-        const message =
-          typeof err.error === 'object' && err.error !== null && 'message' in err.error
-            ? String(err.error.message)
-            : 'Invalid email or password.';
-        this.errorMessage.set(message);
+        
+        // Catches standard ASP.NET Core ProblemDetails or custom error objects
+        if (err.status === 401 || err.status === 400) {
+          this.errorMessage.set(err.error?.message || err.error?.title || 'Invalid email or password.');
+        } else if (err.status === 0) {
+          this.errorMessage.set('Cannot connect to the server. Check CORS configuration or API status.');
+        } else {
+          this.errorMessage.set('An unexpected error occurred. Please try again later.');
+        }
       }
     });
   }

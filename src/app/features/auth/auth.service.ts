@@ -1,42 +1,70 @@
-import { Injectable, inject, signal } from '@angular/core';
+import { Injectable, inject, signal, PLATFORM_ID } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
+import { isPlatformBrowser } from '@angular/common';
+import { Observable, tap } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { tap } from 'rxjs';
-
-export interface AuthResponse {
-  token: string;
-  email: string;
-}
+import {
+  LoginRequest,
+  LoginResponseDTO,
+  RegisterRequest,
+  ForgotPasswordRequest,
+  ResetPasswordRequest,
+  AuthResponse
+} from '../../core/models/auth.model';
 
 @Injectable({
   providedIn: 'root'
 })
 export class AuthService {
-  private http = inject(HttpClient);
-  private apiUrl = `${environment.apiBaseUrl}/auth`;
+private http = inject(HttpClient);
+  private platformId = inject(PLATFORM_ID);
+  private apiUrl = `${environment.apiBaseUrl}/Auth`;
 
-  currentUser = signal<string | null>(null);
   isAuthenticated = signal<boolean>(false);
 
   constructor() {
-    if (typeof window !== 'undefined' && localStorage.getItem('token')) {
-      this.isAuthenticated.set(true);
+    if (isPlatformBrowser(this.platformId)) {
+      this.isAuthenticated.set(!!localStorage.getItem('accessToken'));
     }
   }
 
-  login(credentials: { email: string; password: string }) {
-    return this.http.post<AuthResponse>(`${this.apiUrl}/login`, credentials).pipe(
-      tap(res => {
-        localStorage.setItem('token', res.token);
-        this.currentUser.set(res.email);
+  getAccessToken(): string | null {
+    return isPlatformBrowser(this.platformId) ? localStorage.getItem('accessToken') : null;
+  }
+
+  getRefreshToken(): string | null {
+    return isPlatformBrowser(this.platformId) ? localStorage.getItem('refreshToken') : null;
+  }
+
+  login(dto: LoginRequest): Observable<LoginResponseDTO> {
+    return this.http.post<LoginResponseDTO>(`${this.apiUrl}/login`, dto).pipe(
+      tap((res) => {
+        if (isPlatformBrowser(this.platformId)) {
+          localStorage.setItem('accessToken', res.accessToken);
+          localStorage.setItem('refreshToken', res.refreshToken);
+        }
         this.isAuthenticated.set(true);
       })
     );
   }
 
-  logout() {
-    localStorage.removeItem('token');
-    this.currentUser.set(null);
+  logout(): void {
+    const refreshToken = this.getRefreshToken();
+    if (refreshToken) {
+      this.http.post(`${this.apiUrl}/logout`, { refreshToken }).subscribe({
+        next: () => this.clearSession(),
+        error: () => this.clearSession()
+      });
+    } else {
+      this.clearSession();
+    }
+  }
+
+  private clearSession(): void {
+    if (isPlatformBrowser(this.platformId)) {
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
+    }
     this.isAuthenticated.set(false);
   }
 }
