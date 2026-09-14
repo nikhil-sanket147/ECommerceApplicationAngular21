@@ -34,31 +34,31 @@ export class Login {
     return this.loginForm.controls.password;
   }
 
-  onSubmit(): void {
-    if (this.loginForm.invalid) {
-      this.loginForm.markAllAsTouched();
-      return;
-    }
-
-    this.isLoading.set(true);
-    this.errorMessage.set(null);
-
-    const { email, password } = this.loginForm.getRawValue();
-
-    this.authService.login({ email, password }).subscribe({
-      next: () => {
-        this.isLoading.set(false);
-        const returnUrl = this.route.snapshot.queryParams['returnUrl'] || '/products';
-        this.router.navigateByUrl(returnUrl);
-      },
-      error: (err: HttpErrorResponse) => {
-        this.isLoading.set(false);
-        const message =
-          typeof err.error === 'object' && err.error !== null && 'message' in err.error
-            ? String(err.error.message)
-            : 'Invalid email or password.';
-        this.errorMessage.set(message);
-      }
-    });
+onSubmit(): void {
+  if (this.loginForm.invalid) {
+    this.loginForm.markAllAsTouched();
+    return;
   }
+
+  this.isLoading.set(true);
+  this.errorMessage.set(null);
+
+  const { email, password } = this.loginForm.getRawValue();
+
+  this.authService.login({ email, password }).subscribe({
+    next: () => {
+      this.isLoading.set(false);
+      // Directly navigate to products
+      this.router.navigate(['/products']);
+    },
+    error: (err: HttpErrorResponse) => {
+      this.isLoading.set(false);
+      const message =
+        typeof err.error === 'object' && err.error !== null && 'message' in err.error
+          ? String(err.error.message)
+          : 'Invalid email or password.';
+      this.errorMessage.set(message);
+    }
+  });
+}
 }

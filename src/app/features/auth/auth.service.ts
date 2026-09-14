@@ -1,14 +1,13 @@
 import { Injectable, inject, signal, PLATFORM_ID } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { isPlatformBrowser } from '@angular/common';
-import { Observable, tap } from 'rxjs';
+import { Observable, tap, throwError } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import {
   LoginRequest,
   LoginResponseDTO,
   ForgotPasswordRequest,
   ResetPasswordRequest,
-  AuthResponse,
   RegisterRequestDTO,
   ApiResponse
 } from '../../core/models/auth.model';
@@ -17,7 +16,7 @@ import {
   providedIn: 'root'
 })
 export class AuthService {
-private http = inject(HttpClient);
+  private http = inject(HttpClient);
   private platformId = inject(PLATFORM_ID);
   private apiUrl = `${environment.apiBaseUrl}/Auth`;
 
@@ -25,7 +24,7 @@ private http = inject(HttpClient);
 
   constructor() {
     if (isPlatformBrowser(this.platformId)) {
-      this.isAuthenticated.set(!!localStorage.getItem('accessToken'));
+      this.isAuthenticated.set(!!this.getAccessToken());
     }
   }
 
@@ -37,21 +36,53 @@ private http = inject(HttpClient);
     return isPlatformBrowser(this.platformId) ? localStorage.getItem('refreshToken') : null;
   }
 
+  saveTokens(tokens: LoginResponseDTO): void {
+    if (isPlatformBrowser(this.platformId)) {
+      localStorage.setItem('accessToken', tokens.accessToken);
+      localStorage.setItem('refreshToken', tokens.refreshToken);
+    }
+    this.isAuthenticated.set(true);
+  }
+
+  clearSession(): void {
+    if (isPlatformBrowser(this.platformId)) {
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
+    }
+    this.isAuthenticated.set(false);
+  }
+
   login(dto: LoginRequest): Observable<LoginResponseDTO> {
     return this.http.post<LoginResponseDTO>(`${this.apiUrl}/login`, dto).pipe(
-      tap((res) => {
-        if (isPlatformBrowser(this.platformId)) {
-          localStorage.setItem('accessToken', res.accessToken);
-          localStorage.setItem('refreshToken', res.refreshToken);
-        }
-        this.isAuthenticated.set(true);
-      })
+      tap((res) => this.saveTokens(res))
     );
   }
 
   register(dto: RegisterRequestDTO): Observable<ApiResponse> {
-  return this.http.post<ApiResponse>(`${this.apiUrl}/register`, dto);
-}
+    return this.http.post<ApiResponse>(`${this.apiUrl}/register`, dto);
+  }
+
+  refreshToken(): Observable<LoginResponseDTO> {
+    const refreshToken = this.getRefreshToken();
+    if (!refreshToken) {
+      this.clearSession();
+      return throwError(() => new Error('No refresh token available.'));
+    }
+
+    return this.http
+      .post<LoginResponseDTO>(`${this.apiUrl}/refresh-token`, { refreshToken })
+      .pipe(
+        tap((res) => this.saveTokens(res))
+      );
+  }
+
+  forgotPassword(dto: ForgotPasswordRequest): Observable<ApiResponse> {
+    return this.http.post<ApiResponse>(`${this.apiUrl}/forgot-password`, dto);
+  }
+
+  resetPassword(dto: ResetPasswordRequest): Observable<ApiResponse> {
+    return this.http.post<ApiResponse>(`${this.apiUrl}/reset-password`, dto);
+  }
 
   logout(): void {
     const refreshToken = this.getRefreshToken();
@@ -63,13 +94,5 @@ private http = inject(HttpClient);
     } else {
       this.clearSession();
     }
-  }
-
-  private clearSession(): void {
-    if (isPlatformBrowser(this.platformId)) {
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
-    }
-    this.isAuthenticated.set(false);
   }
 }
