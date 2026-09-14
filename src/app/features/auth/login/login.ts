@@ -1,14 +1,15 @@
-import { Component, inject, signal } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router, ActivatedRoute, RouterLink } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
 import { AuthService } from '../auth.service';
 
 @Component({
   selector: 'app-login',
-  standalone: true,
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [ReactiveFormsModule],
   templateUrl: './login.html',
-  styleUrl: './login.css'
+  styleUrl: './login.css',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class Login {
   private fb = inject(FormBuilder);
@@ -19,7 +20,7 @@ export class Login {
   errorMessage = signal<string | null>(null);
   isLoading = signal(false);
 
-  loginForm = this.fb.group({
+  loginForm = this.fb.nonNullable.group({
     email: ['', [Validators.required, Validators.email]],
     password: ['', [Validators.required, Validators.minLength(6)]]
   });
@@ -32,7 +33,7 @@ export class Login {
     return this.loginForm.get('password');
   }
 
-  onSubmit() {
+  onSubmit(): void {
     if (this.loginForm.invalid) {
       this.loginForm.markAllAsTouched();
       return;
@@ -43,15 +44,19 @@ export class Login {
 
     const { email, password } = this.loginForm.getRawValue();
 
-    this.authService.login({ email: email!, password: password! }).subscribe({
+    this.authService.login({ email, password }).subscribe({
       next: () => {
         this.isLoading.set(false);
         const returnUrl = this.route.snapshot.queryParams['returnUrl'] || '/products';
         this.router.navigateByUrl(returnUrl);
       },
-      error: (err) => {
+      error: (err: HttpErrorResponse) => {
         this.isLoading.set(false);
-        this.errorMessage.set(err?.error?.message || 'Invalid email or password.');
+        const message =
+          typeof err.error === 'object' && err.error !== null && 'message' in err.error
+            ? String(err.error.message)
+            : 'Invalid email or password.';
+        this.errorMessage.set(message);
       }
     });
   }
