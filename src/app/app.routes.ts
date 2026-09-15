@@ -4,6 +4,13 @@ import { guestGuard } from './core/guards/guest.guard';
 
 export const routes: Routes = [
   {
+    path: '',
+    pathMatch: 'full',
+    redirectTo: 'products'
+  },
+
+  // Public fullscreen auth routes
+  {
     path: 'login',
     canActivate: [guestGuard],
     loadComponent: () =>
@@ -27,12 +34,22 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./features/auth/reset-password/reset-password').then(m => m.ResetPassword)
   },
+
+  // Authenticated shell layout (Navbar + Sidebar)
   {
-    path: 'products',
+    path: '',
     canActivate: [authGuard],
     loadComponent: () =>
-      import('./features/products/product-list/product-list').then(m => m.ProductList)
+      import('./shared/components/layout/layout/layout').then(m => m.Layout),
+    children: [
+      {
+        path: 'products',
+        loadComponent: () =>
+          import('./features/products/product-list/product-list').then(m => m.ProductList)
+      }
+    ]
   },
+
   {
     path: '**',
     redirectTo: 'products'

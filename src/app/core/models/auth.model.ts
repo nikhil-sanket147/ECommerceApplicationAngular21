@@ -8,6 +8,12 @@ export interface LoginResponseDTO {
   refreshToken: string;
 }
 
+export interface UserProfileResponse {
+  userId: string;
+  email: string;
+  role: string;
+}
+
 export interface RegisterRequestDTO {
   email: string;
   password: string;

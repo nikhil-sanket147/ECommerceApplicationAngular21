@@ -1,7 +1,7 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { FormBuilder, FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { AuthService } from '../auth.service';
 
 @Component({
@@ -24,7 +24,9 @@ export class ForgotPassword {
     email: ['', [Validators.required, Validators.email]]
   });
 
-  get email() { return this.form.get('email'); }
+  get email(): FormControl<string> {
+    return this.form.controls.email;
+  }
 
   onSubmit(): void {
     if (this.form.invalid) {
@@ -36,15 +38,18 @@ export class ForgotPassword {
     this.errorMessage.set(null);
     this.successMessage.set(null);
 
-    // this.authService.forgotPassword(this.form.getRawValue()).subscribe({
-    //   next: (res) => {
-    //     this.isLoading.set(false);
-    //     this.successMessage.set(res.message || 'Password reset link sent to your email.');
-    //   },
-    //   error: (err: HttpErrorResponse) => {
-    //     this.isLoading.set(false);
-    //     this.errorMessage.set(err.error?.message || 'Request failed. Try again.');
-    //   }
-    // });
+    this.authService.forgotPassword(this.form.getRawValue()).subscribe({
+  next: (message: string) => {
+    this.isLoading.set(false);
+    this.successMessage.set(message || 'Password reset link sent to your email.');
+    this.form.reset();
+  },
+  error: (err: HttpErrorResponse) => {
+    this.isLoading.set(false);
+    // If the server returns a plain text error as well
+    const message = typeof err.error === 'string' ? err.error : 'Request failed. Please try again.';
+    this.errorMessage.set(message);
+  }
+});
   }
 }
