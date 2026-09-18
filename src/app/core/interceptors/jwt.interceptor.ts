@@ -1,5 +1,7 @@
+// src/app/core/interceptors/jwt.interceptor.ts
 import { HttpErrorResponse, HttpInterceptorFn, HttpRequest } from '@angular/common/http';
-import { inject } from '@angular/core';
+import { inject, Injector, PLATFORM_ID } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
 import { Router } from '@angular/router';
 import { BehaviorSubject, catchError, filter, switchMap, take, throwError } from 'rxjs';
 import { AuthService } from '../../features/auth/auth.service';
@@ -16,15 +18,24 @@ const addTokenHeader = (req: HttpRequest<unknown>, token: string) => {
 };
 
 export const jwtInterceptor: HttpInterceptorFn = (req, next) => {
-  const authService = inject(AuthService);
   const router = inject(Router);
+  const platformId = inject(PLATFORM_ID);
+  const injector = inject(Injector);
 
-  // Skip attaching authorization header for public auth routes
-  if (req.url.includes('/Auth/login') || req.url.includes('/Auth/register') || req.url.includes('/Auth/refresh-token')) {
+  // Bypass public auth endpoints
+  if (
+    req.url.includes('/Auth/login') ||
+    req.url.includes('/Auth/register') ||
+    req.url.includes('/Auth/refresh-token') ||
+    req.url.includes('/password/forgot') ||
+    req.url.includes('/password/reset')
+  ) {
     return next(req);
   }
 
-  const token = authService.getAccessToken();
+  // Read access token directly from storage to avoid instantiating AuthService during interceptor setup
+  const token = isPlatformBrowser(platformId) ? localStorage.getItem('accessToken') : null;
+
   let authReq = req;
   if (token) {
     authReq = addTokenHeader(req, token);
@@ -32,8 +43,10 @@ export const jwtInterceptor: HttpInterceptorFn = (req, next) => {
 
   return next(authReq).pipe(
     catchError((error: HttpErrorResponse) => {
-      // Catch token expiration / unauthorized response
       if (error.status === 401) {
+        // Resolve AuthService dynamically only if 401 happens
+        const authService = injector.get(AuthService);
+
         if (!isRefreshing) {
           isRefreshing = true;
           refreshTokenSubject.next(null);
@@ -52,7 +65,6 @@ export const jwtInterceptor: HttpInterceptorFn = (req, next) => {
             })
           );
         } else {
-          // If another request already initiated refresh, wait for the new token
           return refreshTokenSubject.pipe(
             filter((newToken) => newToken !== null),
             take(1),

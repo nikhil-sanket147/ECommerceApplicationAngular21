@@ -33,9 +33,17 @@ export class Layout {
     }
   }
 
-  onLogout(): void {
-    this.isProfileOpen.set(false);
-    this.authService.logout();
-    this.router.navigate(['/login']);
-  }
+onLogout(): void {
+  this.isProfileOpen.set(false);
+
+  this.authService.logout().subscribe({
+    next: () => {
+      this.router.navigate(['/login']);
+    },
+    error: () => {
+      // Even if server returns 500/400, session was cleared by finalize()
+      this.router.navigate(['/login']);
+    }
+  });
+}
 }

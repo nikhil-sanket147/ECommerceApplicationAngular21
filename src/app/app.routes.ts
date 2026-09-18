@@ -1,14 +1,9 @@
 import { Routes } from '@angular/router';
 import { authGuard } from './core/guards/auth.guard';
 import { guestGuard } from './core/guards/guest.guard';
+import { roleGuard } from './core/guards/role.guard';
 
 export const routes: Routes = [
-  {
-    path: '',
-    pathMatch: 'full',
-    redirectTo: 'products'
-  },
-
   // Public fullscreen auth routes
   {
     path: 'login',
@@ -43,13 +38,25 @@ export const routes: Routes = [
       import('./shared/components/layout/layout/layout').then(m => m.Layout),
     children: [
       {
+        path: '',
+        pathMatch: 'full',
+        redirectTo: 'products'
+      },
+      {
         path: 'products',
         loadComponent: () =>
           import('./features/products/product-list/product-list').then(m => m.ProductList)
+      },
+      {
+        path: 'admin/users',
+        canActivate: [roleGuard(['Admin'])],
+        loadComponent: () =>
+          import('./features/admin/user-list/user-list').then(m => m.UserList)
       }
     ]
   },
 
+  // Fallback for unmatched routes
   {
     path: '**',
     redirectTo: 'products'
