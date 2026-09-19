@@ -28,7 +28,6 @@ export class AuthService {
   private authApi = `${environment.apiBaseUrl}/Auth`;
   private passwordApi = `${environment.apiBaseUrl}/password`;
 
-  // Synchronous initialization ensures state is populated immediately before any Guard runs
   isAuthenticated = signal<boolean>(false);
   currentUser = signal<UserProfileResponse | null>(null);
 
@@ -37,10 +36,7 @@ export class AuthService {
       const token = this.getAccessToken();
       this.isAuthenticated.set(!!token);
 
-      // 1. Restore from storage first
       let profile = this.getUserFromStorage();
-
-      // 2. Fallback: Parse directly from token payload
       if (!profile && token) {
         profile = this.getUserFromToken(token);
         if (profile) {
@@ -74,13 +70,11 @@ export class AuthService {
     }
   }
 
-  // Decodes JWT payload directly in the browser with support for array or string roles
   getUserFromToken(token: string): UserProfileResponse | null {
     try {
       const payloadPart = token.split('.')[1];
       if (!payloadPart) return null;
 
-      // Base64URL decode with utf-8 character replacement
       const base64 = payloadPart.replace(/-/g, '+').replace(/_/g, '/');
       const jsonPayload = decodeURIComponent(
         atob(base64)
@@ -90,7 +84,6 @@ export class AuthService {
       );
       const payload = JSON.parse(jsonPayload);
 
-      // Support common JWT claim types (.NET ClaimTypes and standard OIDC/JWT)
       const rawRole =
         payload['role'] ||
         payload['roles'] ||

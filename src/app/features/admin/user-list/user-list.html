@@ -30,6 +30,10 @@
     </div>
   </div>
 
+  @if (successMessage()) {
+    <div class="alert-success">{{ successMessage() }}</div>
+  }
+
   @if (errorMessage()) {
     <div class="alert-error">{{ errorMessage() }}</div>
   }
@@ -43,6 +47,7 @@
         <table class="user-table">
           <thead>
             <tr>
+              <th class="text-center w-sr">Sr. No</th>
               <th>User</th>
               <th>Contact</th>
               <th>Role</th>
@@ -51,8 +56,9 @@
             </tr>
           </thead>
           <tbody>
-            @for (user of users(); track user.id) {
+            @for (user of users(); track user.id; let i = $index) {
               <tr>
+                <td class="text-center text-muted font-medium">{{ i + 1 }}</td>
                 <td>
                   <div class="user-cell">
                     <div class="avatar-sm">{{ getInitials(user) }}</div>
@@ -80,7 +86,7 @@
                     type="button" 
                     class="btn-status-toggle" 
                     [class.deactivate]="user.isActive"
-                    (click)="toggleStatus(user)">
+                    (click)="openConfirmModal(user)">
                     {{ user.isActive ? 'Deactivate' : 'Activate' }}
                   </button>
                 </td>
@@ -94,10 +100,13 @@
     <!-- Grid View -->
     @if (viewMode() === 'grid') {
       <div class="user-grid">
-        @for (user of users(); track user.id) {
+        @for (user of users(); track user.id; let i = $index) {
           <div class="user-card">
             <div class="card-header">
-              <div class="avatar-md">{{ getInitials(user) }}</div>
+              <div class="flex items-center gap-2">
+                <span class="sr-badge">#{{ i + 1 }}</span>
+                <div class="avatar-md">{{ getInitials(user) }}</div>
+              </div>
               <span class="badge" [class.badge-admin]="user.role === 'Admin'" [class.badge-customer]="user.role !== 'Admin'">
                 {{ user.role }}
               </span>
@@ -123,7 +132,7 @@
                 type="button" 
                 class="btn-status-toggle w-full" 
                 [class.deactivate]="user.isActive"
-                (click)="toggleStatus(user)">
+                (click)="openConfirmModal(user)">
                 {{ user.isActive ? 'Deactivate' : 'Activate' }}
               </button>
             </div>
@@ -133,3 +142,30 @@
     }
   }
 </div>
+
+<!-- Confirmation Popup Modal -->
+@if (userToConfirm()) {
+  <div class="modal-backdrop" (click)="closeConfirmModal()">
+    <div class="modal-card" (click)="$event.stopPropagation()">
+      <h3 class="modal-title">Confirm Status Change</h3>
+      <p class="modal-desc">
+        Are you sure you want to 
+        <strong>{{ userToConfirm()?.isActive ? 'deactivate' : 'activate' }}</strong> 
+        user <strong>{{ getFullName(userToConfirm()!) }}</strong>?
+      </p>
+
+      <div class="modal-actions">
+        <button type="button" class="btn-cancel" (click)="closeConfirmModal()">Cancel</button>
+        <button 
+          type="button" 
+          class="btn-confirm" 
+          [class.btn-danger]="userToConfirm()?.isActive"
+          [class.btn-success]="!userToConfirm()?.isActive"
+          [disabled]="isSubmitting()"
+          (click)="confirmToggleStatus()">
+          {{ isSubmitting() ? 'Updating...' : (userToConfirm()?.isActive ? 'Yes, Deactivate' : 'Yes, Activate') }}
+        </button>
+      </div>
+    </div>
+  </div>
+}

@@ -1,4 +1,3 @@
-// src/app/core/interceptors/jwt.interceptor.ts
 import { HttpErrorResponse, HttpInterceptorFn, HttpRequest } from '@angular/common/http';
 import { inject, Injector, PLATFORM_ID } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
@@ -22,18 +21,18 @@ export const jwtInterceptor: HttpInterceptorFn = (req, next) => {
   const platformId = inject(PLATFORM_ID);
   const injector = inject(Injector);
 
-  // Bypass public auth endpoints
-  if (
+  // Skip public auth endpoints with controller prefixes
+  const isPublicAuthRoute =
     req.url.includes('/Auth/login') ||
     req.url.includes('/Auth/register') ||
     req.url.includes('/Auth/refresh-token') ||
     req.url.includes('/password/forgot') ||
-    req.url.includes('/password/reset')
-  ) {
+    req.url.includes('/password/reset');
+
+  if (isPublicAuthRoute) {
     return next(req);
   }
 
-  // Read access token directly from storage to avoid instantiating AuthService during interceptor setup
   const token = isPlatformBrowser(platformId) ? localStorage.getItem('accessToken') : null;
 
   let authReq = req;
@@ -44,7 +43,6 @@ export const jwtInterceptor: HttpInterceptorFn = (req, next) => {
   return next(authReq).pipe(
     catchError((error: HttpErrorResponse) => {
       if (error.status === 401) {
-        // Resolve AuthService dynamically only if 401 happens
         const authService = injector.get(AuthService);
 
         if (!isRefreshing) {

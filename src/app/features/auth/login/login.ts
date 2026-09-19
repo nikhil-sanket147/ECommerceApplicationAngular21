@@ -48,7 +48,6 @@ onSubmit(): void {
   this.authService.login({ email, password }).subscribe({
     next: () => {
       this.isLoading.set(false);
-      // Directly navigate to products
       this.router.navigate(['/products']);
     },
     error: (err: HttpErrorResponse) => {

@@ -1,3 +1,4 @@
+// src/app/features/admin/admin.service.ts
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
@@ -28,19 +29,19 @@ export class AdminService {
     return this.http.get<AdminUserItem>(`${this.adminApi}/users/${id}`);
   }
 
-  deleteUser(id: string): Observable<void> {
-    return this.http.delete<void>(`${this.adminApi}/users/${id}`);
+  deleteUser(id: string): Observable<string> {
+    return this.http.delete(`${this.adminApi}/users/${id}`, { responseType: 'text' });
   }
 
-  activateUser(id: string): Observable<void> {
-    return this.http.put<void>(`${this.adminApi}/activate-user/${id}`, {});
+  activateUser(id: string): Observable<string> {
+    return this.http.put(`${this.adminApi}/activate-user/${id}`, {}, { responseType: 'text' });
   }
 
-  deactivateUser(id: string): Observable<void> {
-    return this.http.put<void>(`${this.adminApi}/deactivate-user/${id}`, {});
+  deactivateUser(id: string): Observable<string> {
+    return this.http.put(`${this.adminApi}/deactivate-user/${id}`, {}, { responseType: 'text' });
   }
 
-  updateUserRole(id: string, role: string): Observable<void> {
-    return this.http.put<void>(`${this.adminApi}/users/${id}/update-role`, { role });
+  updateUserRole(id: string, role: string): Observable<string> {
+    return this.http.put(`${this.adminApi}/users/${id}/update-role`, { role }, { responseType: 'text' });
   }
 }
