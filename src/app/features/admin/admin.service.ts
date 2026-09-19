@@ -14,6 +14,12 @@ export interface AdminUserItem {
   isActive: boolean;
 }
 
+export interface UpdateUserProfileRequest {
+  firstName: string;
+  lastName: string;
+  mobile: string;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -43,5 +49,9 @@ export class AdminService {
 
   updateUserRole(id: string, role: string): Observable<string> {
     return this.http.put(`${this.adminApi}/users/${id}/update-role`, { role }, { responseType: 'text' });
+  }
+
+  updateUserProfile(id: string, dto: UpdateUserProfileRequest): Observable<string> {
+    return this.http.put(`${this.adminApi}/users/${id}/update-profile`, dto, { responseType: 'text' });
   }
 }

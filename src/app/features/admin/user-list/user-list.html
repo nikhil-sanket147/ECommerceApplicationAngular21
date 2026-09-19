@@ -1,5 +1,5 @@
 <div class="users-container">
-  <!-- Header Bar with View Switcher -->
+  <!-- Page Header -->
   <div class="page-header">
     <div>
       <h1 class="page-title">User Management</h1>
@@ -30,6 +30,61 @@
     </div>
   </div>
 
+  <!-- Metric Summary Cards Strip -->
+  <div class="metrics-grid">
+    <div class="metric-card">
+      <span class="metric-label">Total Users</span>
+      <span class="metric-value">{{ totalCount() }}</span>
+    </div>
+    <div class="metric-card">
+      <span class="metric-label">Active</span>
+      <span class="metric-value text-success">{{ activeCount() }}</span>
+    </div>
+    <div class="metric-card">
+      <span class="metric-label">Inactive</span>
+      <span class="metric-value text-danger">{{ inactiveCount() }}</span>
+    </div>
+    <div class="metric-card">
+      <span class="metric-label">Admins</span>
+      <span class="metric-value text-accent">{{ adminCount() }}</span>
+    </div>
+  </div>
+
+  <!-- Search & Filter Controls -->
+  <div class="filter-bar">
+    <div class="search-input-wrapper">
+      <svg class="search-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+      </svg>
+      <input 
+        type="text" 
+        class="search-field" 
+        placeholder="Search by name, email, or mobile..." 
+        [ngModel]="searchQuery()" 
+        (ngModelChange)="searchQuery.set($event); currentPage.set(1)" />
+    </div>
+
+    <div class="filter-controls-right">
+      <select 
+        class="filter-select" 
+        [ngModel]="selectedRoleFilter()" 
+        (ngModelChange)="selectedRoleFilter.set($event); currentPage.set(1)">
+        <option value="ALL">All Roles</option>
+        <option value="Admin">Admin Only</option>
+        <option value="Customer">Customer Only</option>
+      </select>
+
+      <select 
+        class="filter-select" 
+        [ngModel]="pageSize()" 
+        (ngModelChange)="onPageSizeChange(+$event)">
+        @for (opt of pageSizeOptions; track opt) {
+          <option [value]="opt">{{ opt }} per page</option>
+        }
+      </select>
+    </div>
+  </div>
+
   @if (successMessage()) {
     <div class="alert-success">{{ successMessage() }}</div>
   }
@@ -48,22 +103,44 @@
           <thead>
             <tr>
               <th class="text-center w-sr">Sr. No</th>
-              <th>User</th>
+              <th class="cursor-pointer" (click)="toggleSort('name')">
+                <div class="th-content">
+                  User
+                  <span class="sort-indicator">{{ sortColumn() === 'name' ? (sortDirection() === 'asc' ? '↑' : '↓') : '↕' }}</span>
+                </div>
+              </th>
               <th>Contact</th>
-              <th>Role</th>
-              <th>Status</th>
-              <th class="text-right">Action</th>
+              <th class="cursor-pointer" (click)="toggleSort('role')">
+                <div class="th-content">
+                  Role
+                  <span class="sort-indicator">{{ sortColumn() === 'role' ? (sortDirection() === 'asc' ? '↑' : '↓') : '↕' }}</span>
+                </div>
+              </th>
+              <th class="cursor-pointer" (click)="toggleSort('status')">
+                <div class="th-content">
+                  Status
+                  <span class="sort-indicator">{{ sortColumn() === 'status' ? (sortDirection() === 'asc' ? '↑' : '↓') : '↕' }}</span>
+                </div>
+              </th>
+              <th class="text-center w-actions">Actions</th>
             </tr>
           </thead>
           <tbody>
-            @for (user of users(); track user.id; let i = $index) {
+            @for (user of paginatedUsers(); track user.id; let i = $index) {
               <tr>
-                <td class="text-center text-muted font-medium">{{ i + 1 }}</td>
+                <td class="text-center text-muted font-medium">
+                  {{ (currentPage() - 1) * pageSize() + i + 1 }}
+                </td>
                 <td>
                   <div class="user-cell">
                     <div class="avatar-sm">{{ getInitials(user) }}</div>
                     <div>
-                      <div class="font-medium text-dark">{{ getFullName(user) }}</div>
+                      <div class="font-medium text-dark flex items-center gap-1">
+                        {{ getFullName(user) }}
+                        @if (isSelf(user)) {
+                          <span class="self-tag">(You)</span>
+                        }
+                      </div>
                       <div class="text-muted text-xs">{{ user.email }}</div>
                     </div>
                   </div>
@@ -81,30 +158,107 @@
                     {{ user.isActive ? 'Active' : 'Inactive' }}
                   </span>
                 </td>
-                <td class="text-right">
-                  <button 
-                    type="button" 
-                    class="btn-status-toggle" 
-                    [class.deactivate]="user.isActive"
-                    (click)="openConfirmModal(user)">
-                    {{ user.isActive ? 'Deactivate' : 'Activate' }}
-                  </button>
+                <td class="text-center">
+                  <div class="action-buttons-group">
+                    <!-- Edit Button -->
+                    <button 
+                      type="button" 
+                      class="btn-icon btn-edit" 
+                      (click)="openEditModal(user)" 
+                      title="Edit User">
+                      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125" />
+                      </svg>
+                    </button>
+
+                    <!-- Status Toggle (32px Fixed Icon) -->
+                    @if (user.isActive) {
+                      <button 
+                        type="button" 
+                        class="btn-icon btn-deactivate" 
+                        [disabled]="isSelf(user)"
+                        (click)="openConfirmModal(user)"
+                        title="Deactivate User">
+                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M5.636 5.636a9 9 0 1 0 12.728 0M12 3v9" />
+                        </svg>
+                      </button>
+                    } @else {
+                      <button 
+                        type="button" 
+                        class="btn-icon btn-activate" 
+                        (click)="openConfirmModal(user)"
+                        title="Activate User">
+                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                        </svg>
+                      </button>
+                    }
+
+                    <!-- Delete Button -->
+                    <button 
+                      type="button" 
+                      class="btn-icon btn-delete" 
+                      [disabled]="isSelf(user)"
+                      (click)="openDeleteModal(user)" 
+                      title="Delete User">
+                      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                      </svg>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="6" class="text-center empty-cell">
+                  <div class="empty-state">
+                    <p>No users found matching your filters.</p>
+                    <button type="button" class="btn-reset" (click)="resetFilters()">Clear Filters</button>
+                  </div>
                 </td>
               </tr>
             }
           </tbody>
         </table>
+
+        <!-- Table Pagination Footer -->
+        <div class="pagination-footer">
+          <span class="pagination-info">
+            Showing {{ (currentPage() - 1) * pageSize() + 1 }} to 
+            {{ ((currentPage() * pageSize()) > filteredAndSortedUsers().length) ? filteredAndSortedUsers().length : (currentPage() * pageSize()) }} 
+            of {{ filteredAndSortedUsers().length }} users
+          </span>
+
+          <div class="pagination-controls">
+            <button 
+              type="button" 
+              class="pagination-btn" 
+              [disabled]="currentPage() === 1" 
+              (click)="setPage(currentPage() - 1)">
+              Previous
+            </button>
+            <span class="page-number">Page {{ currentPage() }} of {{ totalPages() }}</span>
+            <button 
+              type="button" 
+              class="pagination-btn" 
+              [disabled]="currentPage() === totalPages()" 
+              (click)="setPage(currentPage() + 1)">
+              Next
+            </button>
+          </div>
+        </div>
       </div>
     }
 
     <!-- Grid View -->
     @if (viewMode() === 'grid') {
       <div class="user-grid">
-        @for (user of users(); track user.id; let i = $index) {
+        @for (user of paginatedUsers(); track user.id; let i = $index) {
           <div class="user-card">
             <div class="card-header">
               <div class="flex items-center gap-2">
-                <span class="sr-badge">#{{ i + 1 }}</span>
+                <span class="sr-badge">#{{ (currentPage() - 1) * pageSize() + i + 1 }}</span>
                 <div class="avatar-md">{{ getInitials(user) }}</div>
               </div>
               <span class="badge" [class.badge-admin]="user.role === 'Admin'" [class.badge-customer]="user.role !== 'Admin'">
@@ -113,7 +267,12 @@
             </div>
 
             <div class="card-body">
-              <h3 class="card-name">{{ getFullName(user) }}</h3>
+              <h3 class="card-name">
+                {{ getFullName(user) }}
+                @if (isSelf(user)) {
+                  <span class="self-tag">(You)</span>
+                }
+              </h3>
               <p class="card-email" [title]="user.email">{{ user.email }}</p>
               <div class="card-detail">
                 <span class="text-muted">Mobile:</span>
@@ -127,23 +286,138 @@
               </div>
             </div>
 
-            <div class="card-footer">
+            <div class="card-footer-grid">
               <button 
                 type="button" 
-                class="btn-status-toggle w-full" 
-                [class.deactivate]="user.isActive"
-                (click)="openConfirmModal(user)">
-                {{ user.isActive ? 'Deactivate' : 'Activate' }}
+                class="btn-icon btn-edit flex-1" 
+                (click)="openEditModal(user)" 
+                title="Edit User">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125" />
+                </svg>
+              </button>
+
+              @if (user.isActive) {
+                <button 
+                  type="button" 
+                  class="btn-icon btn-deactivate flex-1" 
+                  [disabled]="isSelf(user)"
+                  (click)="openConfirmModal(user)" 
+                  title="Deactivate User">
+                  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M5.636 5.636a9 9 0 1 0 12.728 0M12 3v9" />
+                  </svg>
+                </button>
+              } @else {
+                <button 
+                  type="button" 
+                  class="btn-icon btn-activate flex-1" 
+                  (click)="openConfirmModal(user)" 
+                  title="Activate User">
+                  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                  </svg>
+                </button>
+              }
+
+              <button 
+                type="button" 
+                class="btn-icon btn-delete flex-1" 
+                [disabled]="isSelf(user)"
+                (click)="openDeleteModal(user)" 
+                title="Delete User">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                </svg>
               </button>
             </div>
           </div>
         }
       </div>
+
+      <!-- Grid Pagination Footer -->
+      <div class="pagination-footer-grid">
+        <button 
+          type="button" 
+          class="pagination-btn" 
+          [disabled]="currentPage() === 1" 
+          (click)="setPage(currentPage() - 1)">
+          Previous
+        </button>
+        <span class="page-number">Page {{ currentPage() }} of {{ totalPages() }}</span>
+        <button 
+          type="button" 
+          class="pagination-btn" 
+          [disabled]="currentPage() === totalPages()" 
+          (click)="setPage(currentPage() + 1)">
+          Next
+        </button>
+      </div>
     }
   }
 </div>
 
-<!-- Confirmation Popup Modal -->
+<!-- 1. Edit User Modal -->
+@if (userToEdit()) {
+  <div class="modal-backdrop" (click)="closeEditModal()">
+    <div class="modal-card" (click)="$event.stopPropagation()">
+      <h3 class="modal-title">Edit User Details</h3>
+
+      <div class="edit-form-grid">
+        <div class="form-group">
+          <label class="form-label">First Name</label>
+          <input 
+            type="text" 
+            class="form-input" 
+            [ngModel]="editForm().firstName"
+            (ngModelChange)="editForm.set({ ...editForm(), firstName: $event })" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Last Name</label>
+          <input 
+            type="text" 
+            class="form-input" 
+            [ngModel]="editForm().lastName"
+            (ngModelChange)="editForm.set({ ...editForm(), lastName: $event })" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Mobile Number</label>
+          <input 
+            type="text" 
+            class="form-input" 
+            [ngModel]="editForm().mobile"
+            (ngModelChange)="editForm.set({ ...editForm(), mobile: $event })" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">System Role</label>
+          <select 
+            class="form-input" 
+            [ngModel]="editForm().role"
+            (ngModelChange)="editForm.set({ ...editForm(), role: $event })">
+            <option value="Customer">Customer</option>
+            <option value="Admin">Admin</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn-cancel" (click)="closeEditModal()">Cancel</button>
+        <button 
+          type="button" 
+          class="btn-confirm btn-primary" 
+          [disabled]="isSubmitting()"
+          (click)="saveUserEdit()">
+          {{ isSubmitting() ? 'Saving...' : 'Save Changes' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- 2. Status Toggle Confirmation Modal -->
 @if (userToConfirm()) {
   <div class="modal-backdrop" (click)="closeConfirmModal()">
     <div class="modal-card" (click)="$event.stopPropagation()">
@@ -164,6 +438,31 @@
           [disabled]="isSubmitting()"
           (click)="confirmToggleStatus()">
           {{ isSubmitting() ? 'Updating...' : (userToConfirm()?.isActive ? 'Yes, Deactivate' : 'Yes, Activate') }}
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- 3. Delete Confirmation Modal -->
+@if (userToDelete()) {
+  <div class="modal-backdrop" (click)="closeDeleteModal()">
+    <div class="modal-card" (click)="$event.stopPropagation()">
+      <h3 class="modal-title text-danger">Delete User Account</h3>
+      <p class="modal-desc">
+        Are you sure you want to permanently delete user 
+        <strong>{{ getFullName(userToDelete()!) }}</strong> ({{ userToDelete()?.email }})? 
+        This action cannot be undone.
+      </p>
+
+      <div class="modal-actions">
+        <button type="button" class="btn-cancel" (click)="closeDeleteModal()">Cancel</button>
+        <button 
+          type="button" 
+          class="btn-confirm btn-danger" 
+          [disabled]="isSubmitting()"
+          (click)="confirmDelete()">
+          {{ isSubmitting() ? 'Deleting...' : 'Yes, Delete Account' }}
         </button>
       </div>
     </div>
