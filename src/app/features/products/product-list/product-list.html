@@ -1,24 +1,323 @@
-<div class="product-container">
-  <header class="product-header">
+<div class="products-page-container">
+  <!-- Page Header -->
+  <div class="page-header">
     <div>
-      <h1>Product Catalog</h1>
-      <p>Browse our collection</p>
+      <h1 class="page-title">Product Catalog</h1>
+      <p class="page-subtitle">Manage products, pricing, and categories</p>
     </div>
-    <button (click)="onLogout()" class="btn-logout">Logout</button>
-  </header>
 
-  <div class="product-grid">
-    @for (product of products(); track product.id) {
-      <div class="product-card">
-        <h3>{{ product.name }}</h3>
-        <p class="description">{{ product.description }}</p>
-        <div class="card-footer">
-          <span class="price">${{ product.price }}</span>
-          <button class="btn-cart">Add to Cart</button>
+    <div class="page-header-actions flex items-center gap-2">
+      @if (isAdmin()) {
+        <button type="button" class="btn-confirm btn-primary" (click)="openCreateModal()">
+          + Add Product
+        </button>
+      }
+
+      <div class="view-toggle">
+        <button 
+          type="button" 
+          class="toggle-btn" 
+          [class.active]="viewMode() === 'grid'" 
+          (click)="viewMode.set('grid')" 
+          title="Grid View">
+          <svg fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25a2.25 2.25 0 0 1-13.5-18v-2.25Z" />
+          </svg>
+        </button>
+        <button 
+          type="button" 
+          class="toggle-btn" 
+          [class.active]="viewMode() === 'table'" 
+          (click)="viewMode.set('table')" 
+          title="Table View">
+          <svg fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Search & Category Filters -->
+  <div class="filter-bar">
+    <div class="search-input-wrapper">
+      <svg class="search-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+      </svg>
+      <input 
+        type="text" 
+        class="search-field" 
+        placeholder="Search products by title or description..." 
+        [ngModel]="searchQuery()" 
+        (ngModelChange)="searchQuery.set($event); currentPage.set(1)" />
+    </div>
+
+    <div class="filter-controls-right">
+      <!-- Category Filter -->
+      <select 
+        class="filter-select" 
+        [ngModel]="selectedCategoryId()" 
+        (ngModelChange)="selectedCategoryId.set($event); currentPage.set(1)">
+        <option value="ALL">All Categories</option>
+        @for (cat of categories(); track cat.id) {
+          <option [value]="cat.id">{{ cat.name }}</option>
+        }
+      </select>
+
+      <!-- Page Size -->
+      <select 
+        class="filter-select" 
+        [ngModel]="pageSize()" 
+        (ngModelChange)="pageSize.set(+$event); currentPage.set(1)">
+        @for (size of pageSizeOptions; track size) {
+          <option [value]="size">{{ size }} per page</option>
+        }
+      </select>
+    </div>
+  </div>
+
+  @if (successMessage()) {
+    <div class="alert-success">{{ successMessage() }}</div>
+  }
+  @if (errorMessage()) {
+    <div class="alert-error">{{ errorMessage() }}</div>
+  }
+
+  @if (isLoading()) {
+    <div class="loading-state">Loading products...</div>
+  } @else {
+    <!-- 1. Grid View -->
+    @if (viewMode() === 'grid') {
+      <div class="products-grid">
+        @for (product of paginatedProducts(); track product.id) {
+          <div class="product-card">
+            <div class="card-header">
+              <span class="badge badge-customer">{{ product.categoryName || 'General' }}</span>
+              @if (isAdmin()) {
+                <div class="action-buttons-group">
+                  <button type="button" class="btn-icon btn-edit" (click)="openEditModal(product)" title="Edit">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125" />
+                    </svg>
+                  </button>
+                  <button type="button" class="btn-icon btn-delete" (click)="openDeleteModal(product)" title="Delete">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                    </svg>
+                  </button>
+                </div>
+              }
+            </div>
+
+            <div class="card-body">
+              <h3 class="product-title">{{ product.name }}</h3>
+              <p class="product-desc">{{ product.description }}</p>
+              <div class="product-stock-tag">
+                <span class="text-xs text-muted">Stock:</span>
+                <span class="font-medium text-xs">{{ product.stockQuantity || 0 }} units</span>
+              </div>
+            </div>
+
+            <div class="product-card-footer">
+              <div class="product-price">${{ product.price | number:'1.2-2' }}</div>
+              <button type="button" class="btn-cart" (click)="addToCart(product)">
+                Add to Cart
+              </button>
+            </div>
+          </div>
+        } @empty {
+          <div class="empty-state w-full" style="grid-column: 1/-1;">
+            <p>No products found matching your filter.</p>
+            <button type="button" class="btn-reset" (click)="resetFilters()">Clear Filters</button>
+          </div>
+        }
+      </div>
+
+      <!-- Grid Pagination -->
+      <div class="pagination-footer-grid">
+        <button type="button" class="pagination-btn" [disabled]="currentPage() === 1" (click)="setPage(currentPage() - 1)">
+          Previous
+        </button>
+        <span class="page-number">Page {{ currentPage() }} of {{ totalPages() }}</span>
+        <button type="button" class="pagination-btn" [disabled]="currentPage() === totalPages()" (click)="setPage(currentPage() + 1)">
+          Next
+        </button>
+      </div>
+    }
+
+    <!-- 2. Table View -->
+    @if (viewMode() === 'table') {
+      <div class="table-wrapper">
+        <table class="user-table">
+          <thead>
+            <tr>
+              <th class="cursor-pointer" (click)="toggleSort('name')">
+                <div class="th-content">
+                  Product
+                  <span class="sort-indicator">{{ sortColumn() === 'name' ? (sortDirection() === 'asc' ? '↑' : '↓') : '↕' }}</span>
+                </div>
+              </th>
+              <th>Category</th>
+              <th class="cursor-pointer" (click)="toggleSort('price')">
+                <div class="th-content">
+                  Price
+                  <span class="sort-indicator">{{ sortColumn() === 'price' ? (sortDirection() === 'asc' ? '↑' : '↓') : '↕' }}</span>
+                </div>
+              </th>
+              <th class="cursor-pointer" (click)="toggleSort('stock')">
+                <div class="th-content">
+                  Stock
+                  <span class="sort-indicator">{{ sortColumn() === 'stock' ? (sortDirection() === 'asc' ? '↑' : '↓') : '↕' }}</span>
+                </div>
+              </th>
+              <th class="text-right">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (product of paginatedProducts(); track product.id) {
+              <tr>
+                <td>
+                  <div class="font-medium text-dark">{{ product.name }}</div>
+                  <div class="text-xs text-muted">{{ product.description }}</div>
+                </td>
+                <td>
+                  <span class="badge badge-customer">{{ product.categoryName || 'General' }}</span>
+                </td>
+                <td class="font-medium text-dark">${{ product.price | number:'1.2-2' }}</td>
+                <td>{{ product.stockQuantity || 0 }}</td>
+                <td class="text-right">
+                  <div class="action-buttons-group">
+                    <button type="button" class="btn-cart-sm" (click)="addToCart(product)">
+                      Add to Cart
+                    </button>
+                    @if (isAdmin()) {
+                      <button type="button" class="btn-icon btn-edit" (click)="openEditModal(product)" title="Edit">
+                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125" />
+                        </svg>
+                      </button>
+                      <button type="button" class="btn-icon btn-delete" (click)="openDeleteModal(product)" title="Delete">
+                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                        </svg>
+                      </button>
+                    }
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+
+        <!-- Table Pagination -->
+        <div class="pagination-footer">
+          <span class="pagination-info">Page {{ currentPage() }} of {{ totalPages() }}</span>
+          <div class="pagination-controls">
+            <button type="button" class="pagination-btn" [disabled]="currentPage() === 1" (click)="setPage(currentPage() - 1)">
+              Previous
+            </button>
+            <button type="button" class="pagination-btn" [disabled]="currentPage() === totalPages()" (click)="setPage(currentPage() + 1)">
+              Next
+            </button>
+          </div>
         </div>
       </div>
-    } @empty {
-      <p class="empty-state">No products found.</p>
     }
-  </div>
+  }
 </div>
+
+<!-- Modal: Create / Edit Product -->
+@if (isCreateModalOpen() || productToEdit()) {
+  <div class="modal-backdrop" (click)="closeModals()">
+    <div class="modal-card" (click)="$event.stopPropagation()">
+      <h3 class="modal-title">{{ productToEdit() ? 'Edit Product' : 'Add New Product' }}</h3>
+
+      <div class="edit-form-grid">
+        <div class="form-group">
+          <label class="form-label">Product Name</label>
+          <input 
+            type="text" 
+            class="form-input" 
+            [ngModel]="productForm().name"
+            (ngModelChange)="productForm.set({ ...productForm(), name: $event })" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Category</label>
+          <select 
+            class="form-input" 
+            [ngModel]="productForm().categoryId"
+            (ngModelChange)="productForm.set({ ...productForm(), categoryId: $event })">
+            @for (cat of categories(); track cat.id) {
+              <option [value]="cat.id">{{ cat.name }}</option>
+            }
+          </select>
+        </div>
+
+        <div class="flex gap-2">
+          <div class="form-group flex-1">
+            <label class="form-label">Price ($)</label>
+            <input 
+              type="number" 
+              class="form-input" 
+              [ngModel]="productForm().price"
+              (ngModelChange)="productForm.set({ ...productForm(), price: +$event })" />
+          </div>
+
+          <div class="form-group flex-1">
+            <label class="form-label">Stock Quantity</label>
+            <input 
+              type="number" 
+              class="form-input" 
+              [ngModel]="productForm().stockQuantity"
+              (ngModelChange)="productForm.set({ ...productForm(), stockQuantity: +$event })" />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Description</label>
+          <textarea 
+            rows="3" 
+            class="form-input" 
+            [ngModel]="productForm().description"
+            (ngModelChange)="productForm.set({ ...productForm(), description: $event })"></textarea>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn-cancel" (click)="closeModals()">Cancel</button>
+        <button 
+          type="button" 
+          class="btn-confirm btn-primary" 
+          [disabled]="isSubmitting()"
+          (click)="saveProduct()">
+          {{ isSubmitting() ? 'Saving...' : 'Save Product' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Modal: Delete Confirmation -->
+@if (productToDelete()) {
+  <div class="modal-backdrop" (click)="closeModals()">
+    <div class="modal-card" (click)="$event.stopPropagation()">
+      <h3 class="modal-title text-danger">Delete Product</h3>
+      <p class="modal-desc">
+        Are you sure you want to delete <strong>{{ productToDelete()?.name }}</strong>? 
+        This will remove the item from the catalog.
+      </p>
+
+      <div class="modal-actions">
+        <button type="button" class="btn-cancel" (click)="closeModals()">Cancel</button>
+        <button 
+          type="button" 
+          class="btn-confirm btn-danger" 
+          [disabled]="isSubmitting()"
+          (click)="confirmDelete()">
+          {{ isSubmitting() ? 'Deleting...' : 'Yes, Delete' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}

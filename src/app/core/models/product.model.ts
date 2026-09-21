@@ -3,13 +3,26 @@ export interface Product {
   name: string;
   description: string;
   price: number;
-  imageUrl?: string;
-  category?: string;
   stockQuantity?: number;
-  isAvailable?: boolean;
+  categoryId?: string | number;
+  categoryName?: string;
+  imageUrl?: string;
 }
 
-// Model for paginated product API responses
+export interface Category {
+  id: string | number;
+  name: string;
+  description: string;
+}
+
+export interface CreateProductRequest{
+  name: string;
+  description: string;
+  price: number;
+  stockQuantity: number;
+  categoryId: string | number;
+}
+
 export interface ProductListResponse {
   items: Product[];
   totalCount: number;
