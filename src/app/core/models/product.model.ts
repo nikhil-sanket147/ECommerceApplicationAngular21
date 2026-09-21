@@ -21,6 +21,7 @@ export interface CreateProductRequest{
   price: number;
   stockQuantity: number;
   categoryId: string | number;
+  imageUrl?: string;
 }
 
 export interface ProductListResponse {

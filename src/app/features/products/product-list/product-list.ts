@@ -1,7 +1,7 @@
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ProductService } from '../product.service';
+import { ProductService, CreateCategoryRequest } from '../product.service';
 import { AuthService } from '../../auth/auth.service';
 import { Product, Category, CreateProductRequest } from '../../../core/models/product.model';
 
@@ -26,7 +26,7 @@ export class ProductList implements OnInit {
   successMessage = signal<string | null>(null);
   viewMode = signal<'grid' | 'table'>('grid');
 
-  // Search & Filter
+  // Search, Filter & Sort
   searchQuery = signal<string>('');
   selectedCategoryId = signal<string>('ALL');
   sortColumn = signal<SortColumn>('name');
@@ -37,13 +37,29 @@ export class ProductList implements OnInit {
   pageSize = signal<number>(8);
   pageSizeOptions = [8, 12, 24];
 
-  // User Role
+  // User Role Guard
   isAdmin = computed(() => this.authService.currentUser()?.role?.toLowerCase() === 'admin');
+
+  // Summary Metrics
+  totalProductsCount = computed(() => this.products().length);
+  inStockCount = computed(() => this.products().filter(p => (p.stockQuantity || 0) > 0).length);
+  outOrLowStockCount = computed(() => this.products().filter(p => (p.stockQuantity || 0) < 5).length);
+  totalCategoriesCount = computed(() => this.categories().length);
 
   // Modals State
   productToEdit = signal<Product | null>(null);
   productToDelete = signal<Product | null>(null);
   isCreateModalOpen = signal<boolean>(false);
+
+  // Category Modal State
+  isCategoryModalOpen = signal<boolean>(false);
+  editingCategory = signal<Category | null>(null);
+  categoryForm = signal<CreateCategoryRequest>({ name: '', description: '' });
+
+  // Quick Stock Modal State
+  stockModalProduct = signal<Product | null>(null);
+  newStockValue = signal<number>(0);
+
   isSubmitting = signal<boolean>(false);
 
   productForm = signal<CreateProductRequest>({
@@ -54,7 +70,6 @@ export class ProductList implements OnInit {
     categoryId: ''
   });
 
-  // Filtered & Sorted Products
   filteredProducts = computed(() => {
     const q = this.searchQuery().toLowerCase().trim();
     const catId = this.selectedCategoryId();
@@ -129,8 +144,9 @@ export class ProductList implements OnInit {
     this.currentPage.set(1);
   }
 
-  // --- CRUD Modals ---
+  // --- Product CRUD Actions ---
   openCreateModal(): void {
+    if (!this.isAdmin()) return;
     this.productForm.set({
       name: '',
       description: '',
@@ -142,6 +158,7 @@ export class ProductList implements OnInit {
   }
 
   openEditModal(product: Product): void {
+    if (!this.isAdmin()) return;
     this.productToEdit.set(product);
     this.productForm.set({
       name: product.name,
@@ -153,6 +170,7 @@ export class ProductList implements OnInit {
   }
 
   openDeleteModal(product: Product): void {
+    if (!this.isAdmin()) return;
     this.productToDelete.set(product);
   }
 
@@ -161,10 +179,15 @@ export class ProductList implements OnInit {
       this.isCreateModalOpen.set(false);
       this.productToEdit.set(null);
       this.productToDelete.set(null);
+      this.isCategoryModalOpen.set(false);
+      this.editingCategory.set(null);
+      this.stockModalProduct.set(null);
     }
   }
 
   saveProduct(): void {
+    if (!this.isAdmin()) return;
+
     this.isSubmitting.set(true);
     const form = this.productForm();
     const isEdit = !!this.productToEdit();
@@ -187,6 +210,7 @@ export class ProductList implements OnInit {
   }
 
   confirmDelete(): void {
+    if (!this.isAdmin()) return;
     const prod = this.productToDelete();
     if (!prod) return;
 
@@ -205,8 +229,94 @@ export class ProductList implements OnInit {
     });
   }
 
+  // --- Quick Stock Update ---
+  openStockModal(product: Product): void {
+    if (!this.isAdmin()) return;
+    this.stockModalProduct.set(product);
+    this.newStockValue.set(product.stockQuantity || 0);
+  }
+
+  saveQuickStock(): void {
+    const prod = this.stockModalProduct();
+    if (!prod) return;
+
+    this.isSubmitting.set(true);
+    this.productService.updateStock(prod.id, this.newStockValue()).subscribe({
+      next: () => {
+        this.isSubmitting.set(false);
+        this.closeModals();
+        this.loadData();
+        this.showToast(`Stock updated for ${prod.name}.`);
+      },
+      error: () => {
+        this.isSubmitting.set(false);
+        this.errorMessage.set('Failed to update stock quantity.');
+      }
+    });
+  }
+
+  // --- Category Actions ---
+  openCategoryModal(): void {
+    if (!this.isAdmin()) return;
+    this.categoryForm.set({ name: '', description: '' });
+    this.editingCategory.set(null);
+    this.isCategoryModalOpen.set(true);
+  }
+
+  startEditCategory(cat: Category): void {
+    this.editingCategory.set(cat);
+    this.categoryForm.set({
+      name: cat.name,
+      description: cat.description || ''
+    });
+  }
+
+  cancelEditCategory(): void {
+    this.editingCategory.set(null);
+    this.categoryForm.set({ name: '', description: '' });
+  }
+
+  saveCategory(): void {
+    if (!this.isAdmin()) return;
+    const form = this.categoryForm();
+    if (!form.name.trim()) return;
+
+    this.isSubmitting.set(true);
+    const editCat = this.editingCategory();
+
+    const action$ = editCat
+      ? this.productService.updateCategory(editCat.id, form)
+      : this.productService.createCategory(form);
+
+    action$.subscribe({
+      next: () => {
+        this.isSubmitting.set(false);
+        this.cancelEditCategory();
+        this.productService.getCategories().subscribe(cats => this.categories.set(cats));
+        this.showToast(editCat ? 'Category updated successfully.' : 'Category created successfully.');
+      },
+      error: () => {
+        this.isSubmitting.set(false);
+        this.errorMessage.set('Failed to save category.');
+      }
+    });
+  }
+
+  deleteCategory(cat: Category): void {
+    if (!this.isAdmin()) return;
+    if (!confirm(`Are you sure you want to delete category "${cat.name}"?`)) return;
+
+    this.productService.deleteCategory(cat.id).subscribe({
+      next: () => {
+        this.productService.getCategories().subscribe(cats => this.categories.set(cats));
+        this.showToast('Category deleted successfully.');
+      },
+      error: () => this.errorMessage.set('Failed to delete category.')
+    });
+  }
+
   addToCart(product: Product): void {
-    // Hooks into Cart Service
+    if ((product.stockQuantity || 0) <= 0) return;
     this.showToast(`Added "${product.name}" to cart!`);
   }
 
