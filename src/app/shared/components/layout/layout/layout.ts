@@ -1,11 +1,13 @@
 import { Component, ElementRef, HostListener, inject, signal } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthService } from '../../../../features/auth/auth.service';
+import { CartDrawer } from '../../../../features/cart/cart-drawer/cart-drawer';
+import { CartService } from '../../../../features/cart/cart.service';
 
 @Component({
   selector: 'app-layout',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, CartDrawer],
   templateUrl: './layout.html',
   styleUrl: './layout.css',
 })
@@ -13,6 +15,7 @@ export class Layout {
   private authService = inject(AuthService);
   private router = inject(Router);
   private elementRef = inject(ElementRef);
+  cartService = inject(CartService);
 
   // Directly references the currentUser signal managed by AuthService
   user = this.authService.currentUser;

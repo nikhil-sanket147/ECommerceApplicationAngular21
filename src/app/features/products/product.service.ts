@@ -59,8 +59,8 @@ export class ProductService {
     return this.http.delete(`${this.baseUrl}/Product/${id}`, { responseType: 'text' });
   }
 
-  updateStock(id: string | number, stock: number): Observable<any> {
-    return this.http.patch(`${this.baseUrl}/Product/${id}/stock`, { stock });
-  }
+updateStock(id: string | number, quantityChange: number): Observable<any> {
+  return this.http.patch(`${this.baseUrl}/Product/${id}/stock?quantityChange=${quantityChange}`, null);
+}
 }
 

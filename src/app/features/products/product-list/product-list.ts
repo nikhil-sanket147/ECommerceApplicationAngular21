@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { ProductService, CreateCategoryRequest } from '../product.service';
 import { AuthService } from '../../auth/auth.service';
 import { Product, Category, CreateProductRequest } from '../../../core/models/product.model';
+import { CartService } from '../../cart/cart.service';
 
 type SortColumn = 'name' | 'price' | 'stock';
 type SortDirection = 'asc' | 'desc';
@@ -18,6 +19,7 @@ type SortDirection = 'asc' | 'desc';
 export class ProductList implements OnInit {
   private productService = inject(ProductService);
   private authService = inject(AuthService);
+  private cartService = inject(CartService);
 
   products = signal<Product[]>([]);
   categories = signal<Category[]>([]);
@@ -151,7 +153,7 @@ export class ProductList implements OnInit {
       name: '',
       description: '',
       price: 0,
-      stockQuantity: 10,
+      stockQuantity: 1,
       categoryId: this.categories()[0]?.id || ''
     });
     this.isCreateModalOpen.set(true);
@@ -236,24 +238,24 @@ export class ProductList implements OnInit {
     this.newStockValue.set(product.stockQuantity || 0);
   }
 
-  saveQuickStock(): void {
-    const prod = this.stockModalProduct();
-    if (!prod) return;
+saveQuickStock(): void {
+  const prod = this.stockModalProduct();
+  if (!prod) return;
 
-    this.isSubmitting.set(true);
-    this.productService.updateStock(prod.id, this.newStockValue()).subscribe({
-      next: () => {
-        this.isSubmitting.set(false);
-        this.closeModals();
-        this.loadData();
-        this.showToast(`Stock updated for ${prod.name}.`);
-      },
-      error: () => {
-        this.isSubmitting.set(false);
-        this.errorMessage.set('Failed to update stock quantity.');
-      }
-    });
-  }
+  this.isSubmitting.set(true);
+  this.productService.updateStock(prod.id, this.newStockValue()).subscribe({
+    next: () => {
+      this.isSubmitting.set(false);
+      this.closeModals();
+      this.loadData();
+      this.showToast(`Stock updated for ${prod.name}.`);
+    },
+    error: () => {
+      this.isSubmitting.set(false);
+      this.errorMessage.set('Failed to update stock quantity.');
+    }
+  });
+}
 
   // --- Category Actions ---
   openCategoryModal(): void {
@@ -315,10 +317,23 @@ export class ProductList implements OnInit {
     });
   }
 
-  addToCart(product: Product): void {
-    if ((product.stockQuantity || 0) <= 0) return;
-    this.showToast(`Added "${product.name}" to cart!`);
-  }
+addToCart(product: Product): void {
+  if ((product.stockQuantity || 0) <= 0) return;
+
+  this.cartService.addItem({
+    productId: product.id,
+    productName: product.name,
+    unitPrice: product.price,
+    quantity: 1,
+    imageUrl: product.imageUrl  || ""
+  }).subscribe({
+    next: () => {
+      this.showToast(`Added "${product.name}" to cart!`);
+      this.cartService.openDrawer(); // Automatically slides the drawer open
+    },
+    error: () => this.errorMessage.set('Failed to add item to cart.')
+  });
+}
 
   private showToast(msg: string): void {
     this.successMessage.set(msg);
