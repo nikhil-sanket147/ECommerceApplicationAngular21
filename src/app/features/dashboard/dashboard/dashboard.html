@@ -74,7 +74,7 @@
                   <td>
                     <span class="font-mono text-dark font-semibold">#{{ order.id.slice(0, 8) }}</span>
                   </td>
-                  <td>{{ order.items?.length || 0 }} items</td>
+                  <td>{{ order.items }} items</td>
                   <td class="font-semibold text-dark">${{ order.totalAmount | number:'1.2-2' }}</td>
                   <td>
                     <span class="badge" [ngClass]="getStatusBadgeClass(order.status)">
