@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { OrderService } from '../order.service';
 import { AuthService } from '../../auth/auth.service';
 import { Order, OrderStatus } from '../../../core/models/order.model';
+import { ToastService } from '../../../core/services/toast.service';
 
 type SortColumn = 'id' | 'customer' | 'sku' | 'items' | 'total' | 'status';
 type SortDirection = 'asc' | 'desc';
@@ -18,10 +19,10 @@ type SortDirection = 'asc' | 'desc';
 export class OrderList implements OnInit {
   private orderService = inject(OrderService);
   private authService = inject(AuthService);
+  private toast = inject(ToastService);
 
   orders = signal<Order[]>([]);
   isLoading = signal<boolean>(false);
-  errorMessage = signal<string | null>(null);
   selectedOrder = signal<Order | null>(null);
   viewMode = signal<'table' | 'grid'>('table');
 
@@ -112,7 +113,6 @@ export class OrderList implements OnInit {
 
   loadOrders(): void {
     this.isLoading.set(true);
-    this.errorMessage.set(null);
 
     const user = this.authService.currentUser();
     const fetch$ = this.isAdmin() 
@@ -125,7 +125,7 @@ export class OrderList implements OnInit {
         this.isLoading.set(false);
       },
       error: () => {
-        this.errorMessage.set('Failed to load orders.');
+        this.toast.error('Failed to load orders.');
         this.isLoading.set(false);
       }
     });
@@ -212,16 +212,19 @@ export class OrderList implements OnInit {
   }
 
   cancelOrder(order: Order): void {
-    if (!confirm(`Are you sure you want to cancel Order #${order.id}?`)) return;
+    if (!confirm(`Are you sure you want to cancel Order #${order.id.slice(0, 8)}?`)) return;
 
     this.orderService.cancelOrder(order.id).subscribe({
       next: () => {
+        this.toast.info(`Order #${order.id.slice(0, 8)} cancelled successfully.`);
         this.loadOrders();
         if (this.selectedOrder()?.id === order.id) {
           this.selectedOrder.set(null);
         }
       },
-      error: () => alert('Failed to cancel order.')
+      error: () => {
+        this.toast.error('Failed to cancel order.');
+      }
     });
   }
 

@@ -5,6 +5,7 @@ import { ProductService, CreateCategoryRequest } from '../product.service';
 import { AuthService } from '../../auth/auth.service';
 import { Product, Category, CreateProductRequest } from '../../../core/models/product.model';
 import { CartService } from '../../cart/cart.service';
+import { ToastService } from '../../../core/services/toast.service';
 
 type SortColumn = 'name' | 'price' | 'stock';
 type SortDirection = 'asc' | 'desc';
@@ -20,12 +21,11 @@ export class ProductList implements OnInit {
   private productService = inject(ProductService);
   private authService = inject(AuthService);
   private cartService = inject(CartService);
+  private toast = inject(ToastService);
 
   products = signal<Product[]>([]);
   categories = signal<Category[]>([]);
   isLoading = signal<boolean>(false);
-  errorMessage = signal<string | null>(null);
-  successMessage = signal<string | null>(null);
   viewMode = signal<'grid' | 'table'>('grid');
 
   // Search, Filter & Sort
@@ -106,11 +106,10 @@ export class ProductList implements OnInit {
 
   loadData(): void {
     this.isLoading.set(true);
-    this.errorMessage.set(null);
 
     this.productService.getCategories().subscribe({
       next: (cats) => this.categories.set(cats),
-      error: () => {}
+      error: () => this.toast.error('Failed to load categories.')
     });
 
     this.productService.getProducts().subscribe({
@@ -119,7 +118,7 @@ export class ProductList implements OnInit {
         this.isLoading.set(false);
       },
       error: () => {
-        this.errorMessage.set('Failed to load products.');
+        this.toast.error('Failed to load products.');
         this.isLoading.set(false);
       }
     });
@@ -202,11 +201,11 @@ export class ProductList implements OnInit {
         this.isSubmitting.set(false);
         this.closeModals();
         this.loadData();
-        this.showToast(isEdit ? 'Product updated successfully.' : 'Product created successfully.');
+        this.toast.success(isEdit ? 'Product updated successfully.' : 'Product created successfully.');
       },
       error: () => {
         this.isSubmitting.set(false);
-        this.errorMessage.set('Failed to save product.');
+        this.toast.error('Failed to save product.');
       }
     });
   }
@@ -222,11 +221,11 @@ export class ProductList implements OnInit {
         this.isSubmitting.set(false);
         this.closeModals();
         this.loadData();
-        this.showToast('Product deleted successfully.');
+        this.toast.success('Product deleted successfully.');
       },
       error: () => {
         this.isSubmitting.set(false);
-        this.errorMessage.set('Failed to delete product.');
+        this.toast.error('Failed to delete product.');
       }
     });
   }
@@ -238,24 +237,32 @@ export class ProductList implements OnInit {
     this.newStockValue.set(product.stockQuantity || 0);
   }
 
-saveQuickStock(): void {
-  const prod = this.stockModalProduct();
-  if (!prod) return;
+  saveQuickStock(): void {
+    const prod = this.stockModalProduct();
+    if (!prod) return;
 
-  this.isSubmitting.set(true);
-  this.productService.updateStock(prod.id, this.newStockValue()).subscribe({
-    next: () => {
-      this.isSubmitting.set(false);
+    const currentStock = prod.stockQuantity || 0;
+    const delta = this.newStockValue() - currentStock;
+
+    if (delta === 0) {
       this.closeModals();
-      this.loadData();
-      this.showToast(`Stock updated for ${prod.name}.`);
-    },
-    error: () => {
-      this.isSubmitting.set(false);
-      this.errorMessage.set('Failed to update stock quantity.');
+      return;
     }
-  });
-}
+
+    this.isSubmitting.set(true);
+    this.productService.updateStock(prod.id, delta).subscribe({
+      next: () => {
+        this.isSubmitting.set(false);
+        this.closeModals();
+        this.loadData();
+        this.toast.success(`Stock level updated for ${prod.name}.`);
+      },
+      error: () => {
+        this.isSubmitting.set(false);
+        this.toast.error('Failed to update stock quantity.');
+      }
+    });
+  }
 
   // --- Category Actions ---
   openCategoryModal(): void {
@@ -295,11 +302,11 @@ saveQuickStock(): void {
         this.isSubmitting.set(false);
         this.cancelEditCategory();
         this.productService.getCategories().subscribe(cats => this.categories.set(cats));
-        this.showToast(editCat ? 'Category updated successfully.' : 'Category created successfully.');
+        this.toast.success(editCat ? 'Category updated successfully.' : 'Category created successfully.');
       },
       error: () => {
         this.isSubmitting.set(false);
-        this.errorMessage.set('Failed to save category.');
+        this.toast.error('Failed to save category.');
       }
     });
   }
@@ -311,32 +318,30 @@ saveQuickStock(): void {
     this.productService.deleteCategory(cat.id).subscribe({
       next: () => {
         this.productService.getCategories().subscribe(cats => this.categories.set(cats));
-        this.showToast('Category deleted successfully.');
+        this.toast.success('Category deleted successfully.');
       },
-      error: () => this.errorMessage.set('Failed to delete category.')
+      error: () => this.toast.error('Failed to delete category.')
     });
   }
 
-addToCart(product: Product): void {
-  if ((product.stockQuantity || 0) <= 0) return;
+  addToCart(product: Product): void {
+    if ((product.stockQuantity || 0) <= 0) {
+      this.toast.warning('This item is currently out of stock.');
+      return;
+    }
 
-  this.cartService.addItem({
-    productId: product.id,
-    productName: product.name,
-    unitPrice: product.price,
-    quantity: 1,
-    imageUrl: product.imageUrl  || ""
-  }).subscribe({
-    next: () => {
-      this.showToast(`Added "${product.name}" to cart!`);
-      this.cartService.openDrawer(); // Automatically slides the drawer open
-    },
-    error: () => this.errorMessage.set('Failed to add item to cart.')
-  });
-}
-
-  private showToast(msg: string): void {
-    this.successMessage.set(msg);
-    setTimeout(() => this.successMessage.set(null), 3000);
+    this.cartService.addItem({
+      productId: product.id,
+      productName: product.name,
+      unitPrice: product.price,
+      quantity: 1,
+      imageUrl: product.imageUrl || ''
+    }).subscribe({
+      next: () => {
+        this.toast.success(`"${product.name}" added to cart!`);
+        this.cartService.openDrawer();
+      },
+      error: () => this.toast.error('Failed to add item to cart.')
+    });
   }
 }

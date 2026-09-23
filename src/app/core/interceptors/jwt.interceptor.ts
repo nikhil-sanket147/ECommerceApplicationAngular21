@@ -21,7 +21,7 @@ export const jwtInterceptor: HttpInterceptorFn = (req, next) => {
   const platformId = inject(PLATFORM_ID);
   const injector = inject(Injector);
 
-  // Skip public auth endpoints with controller prefixes
+  // Skip public auth endpoints
   const isPublicAuthRoute =
     req.url.includes('/Auth/login') ||
     req.url.includes('/Auth/register') ||
@@ -42,6 +42,7 @@ export const jwtInterceptor: HttpInterceptorFn = (req, next) => {
 
   return next(authReq).pipe(
     catchError((error: HttpErrorResponse) => {
+      // 1. Handle Expired / Invalid Tokens
       if (error.status === 401) {
         const authService = injector.get(AuthService);
 
@@ -58,7 +59,10 @@ export const jwtInterceptor: HttpInterceptorFn = (req, next) => {
             catchError((refreshErr) => {
               isRefreshing = false;
               authService.clearSession();
-              router.navigate(['/login']);
+              // Preserve current path so user returns after re-login
+              router.navigate(['/login'], {
+                queryParams: { returnUrl: router.routerState.snapshot.url }
+              });
               return throwError(() => refreshErr);
             })
           );
@@ -69,6 +73,16 @@ export const jwtInterceptor: HttpInterceptorFn = (req, next) => {
             switchMap((newToken) => next(addTokenHeader(req, newToken!)))
           );
         }
+      }
+
+      // 2. Handle Forbidden (Role Insufficiency)
+      if (error.status === 403) {
+        console.warn('HTTP 403: Insufficient privileges for this action.');
+      }
+
+      // 3. Handle Service Outages (Redis offline, DB down, or Gateway timeouts)
+      if (error.status === 0 || error.status === 500 || error.status === 503) {
+        console.error(`Backend Service Error [${error.status}]:`, error.error?.detail || error.message);
       }
 
       return throwError(() => error);

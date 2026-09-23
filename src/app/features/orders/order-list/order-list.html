@@ -103,10 +103,6 @@
     </div>
   </div>
 
-  @if (errorMessage()) {
-    <div class="alert-error">{{ errorMessage() }}</div>
-  }
-
   @if (isLoading()) {
     <div class="loading-state">Loading orders...</div>
   } @else {

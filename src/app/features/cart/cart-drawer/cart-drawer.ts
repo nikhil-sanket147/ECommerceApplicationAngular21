@@ -5,6 +5,7 @@ import { RouteConfigLoadEnd, Router } from '@angular/router';
 import { CartItem } from '../../../core/models/cart.model';
 import { OrderService } from '../../orders/order.service';
 import { AuthService } from '../../auth/auth.service';
+import { ToastService } from '../../../core/services/toast.service';
 
 @Component({
   selector: 'app-cart-drawer',
@@ -18,10 +19,11 @@ export class CartDrawer implements OnInit {
 
   private orderService = inject(OrderService);
   private authService = inject(AuthService);
+  private toast = inject(ToastService);
 
   ngOnInit(): void {
     this.cartService.getCart().subscribe({
-      error:() => {}
+      error: () => { }
     });
   }
 
@@ -42,7 +44,7 @@ export class CartDrawer implements OnInit {
       this.removeItem(item);
     }
   }
-  
+
   removeItem(item: CartItem): void {
     this.cartService.removeItem(item.productId).subscribe();
   }
@@ -54,36 +56,35 @@ export class CartDrawer implements OnInit {
   }
 
   goToCheckout(): void {
-  const user = this.authService.currentUser();
-  const items = this.cartService.cartItems();
+    const user = this.authService.currentUser();
+    const items = this.cartService.cartItems();
 
-  if (!user?.userId) {
-    alert('Please log in to place an order.');
-    return;
-  }
-
-  if (items.length === 0) return;
-
-  const orderPayload = {
-    customerId: user.userId,
-    items: items.map(i => ({
-      productId: String(i.productId),
-      sku: (i as any).sku || 'DEFAULT-SKU',
-      unitPrice: i.unitPrice,
-      quantity: i.quantity
-    }))
-  };
-
-  this.orderService.createOrder(orderPayload).subscribe({
-    next: () => {
-      this.cartService.clearCart().subscribe();
-      this.cartService.closeDrawer();
-      this.router.navigate(['/orders']);
-    },
-    error: (err) => {
-      console.error('Order placement failed:', err);
-      alert('Failed to place order. Please try again.');
+    if (!user?.userId) {
+      this.toast.warning('Please log in to complete your checkout.', 'Authentication Required');
+      return;
     }
-  });
-}
+
+    if (items.length === 0) return;
+
+    const orderPayload = {
+      customerId: user.userId,
+      items: items.map(i => ({
+        productId: String(i.productId),
+        sku: (i as any).sku || 'DEFAULT-SKU',
+        unitPrice: i.unitPrice,
+        quantity: i.quantity
+      }))
+    };
+
+    this.orderService.createOrder(orderPayload).subscribe({
+      next: () => {
+        this.cartService.clearCart().subscribe();
+        this.cartService.closeDrawer();
+        this.router.navigate(['/orders']);
+      },
+      error: (err) => {
+        this.toast.error('Failed to create your order. Please try again.');
+      }
+    });
+  }
 }
