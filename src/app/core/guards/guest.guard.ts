@@ -1,16 +1,17 @@
-import { inject } from '@angular/core';
+import { inject, PLATFORM_ID } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
 import { CanActivateFn, Router } from '@angular/router';
 import { AuthService } from '../../features/auth/auth.service';
 
 export const guestGuard: CanActivateFn = () => {
   const authService = inject(AuthService);
   const router = inject(Router);
+  const platformId = inject(PLATFORM_ID);
 
-  // If already authenticated, redirect to products
-  if (authService.getAccessToken()) {
-    return router.createUrlTree(['/products']);
+  if (isPlatformBrowser(platformId) && authService.getAccessToken()) {
+    // Redirect authenticated users to the dashboard
+    return router.createUrlTree(['/dashboard']);
   }
 
-  // If not logged in, allow them to view the login/register page
   return true;
 };

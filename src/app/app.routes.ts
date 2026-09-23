@@ -30,7 +30,7 @@ export const routes: Routes = [
       import('./features/auth/reset-password/reset-password').then(m => m.ResetPassword)
   },
 
-  // Authenticated shell layout (Navbar + Sidebar)
+  // inside routes array in app.routes.ts
   {
     path: '',
     canActivate: [authGuard],
@@ -40,7 +40,13 @@ export const routes: Routes = [
       {
         path: '',
         pathMatch: 'full',
-        redirectTo: 'products'
+        redirectTo: 'dashboard'
+      },
+      {
+        path: 'dashboard',
+        canActivate: [roleGuard(['Admin'])],
+        loadComponent: () =>
+          import('./features/dashboard/dashboard/dashboard').then(m => m.Dashboard)
       },
       {
         path: 'products',
@@ -54,15 +60,16 @@ export const routes: Routes = [
           import('./features/admin/user-list/user-list').then(m => m.UserList)
       },
       {
-  path: 'orders',
-  loadComponent: () => import('./features/orders/order-list/order-list').then(m => m.OrderList)
-}
+        path: 'orders',
+        loadComponent: () =>
+          import('./features/orders/order-list/order-list').then(m => m.OrderList)
+      }
     ]
   },
 
   // Fallback for unmatched routes
   {
     path: '**',
-    redirectTo: 'products'
+    redirectTo: 'dashboard'
   }
 ];
