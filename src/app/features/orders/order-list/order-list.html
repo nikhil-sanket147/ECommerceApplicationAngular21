@@ -1,0 +1,391 @@
+<div class="orders-page-container">
+  <!-- Header with Refresh Button & View Mode Switcher -->
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">{{ isAdmin() ? 'All Orders Management' : 'My Orders' }}</h1>
+      <p class="page-subtitle">Track SKUs, review line items, and manage order statuses</p>
+    </div>
+
+    <div class="page-header-actions">
+      <!-- Direct Asynchronous Refresh Button -->
+      <button 
+        type="button" 
+        class="icon-btn refresh-btn" 
+        (click)="loadOrders()" 
+        [disabled]="isLoading()" 
+        title="Refresh Orders">
+        <svg [class.spin]="isLoading()" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+        </svg>
+      </button>
+
+      <div class="view-toggle">
+        <button 
+          type="button" 
+          class="toggle-btn" 
+          [class.active]="viewMode() === 'table'" 
+          (click)="viewMode.set('table')" 
+          title="Table View">
+          <svg fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+          </svg>
+        </button>
+        <button 
+          type="button" 
+          class="toggle-btn" 
+          [class.active]="viewMode() === 'grid'" 
+          (click)="viewMode.set('grid')" 
+          title="Grid View">
+          <svg fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25a2.25 2.25 0 0 1-13.5-18v-2.25Z" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Metric Summary Cards Strip -->
+  <div class="metrics-grid">
+    <div class="metric-card">
+      <span class="metric-label">Total Orders</span>
+      <span class="metric-value">{{ totalOrdersCount() }}</span>
+    </div>
+    <div class="metric-card">
+      <span class="metric-label">Completed / Paid</span>
+      <span class="metric-value text-success">{{ completedCount() }}</span>
+    </div>
+    <div class="metric-card">
+      <span class="metric-label">Pending / Reserved</span>
+      <span class="metric-value text-accent">{{ pendingCount() }}</span>
+    </div>
+    <div class="metric-card">
+      <span class="metric-label">Cancelled / Failed</span>
+      <span class="metric-value text-danger">{{ cancelledCount() }}</span>
+    </div>
+  </div>
+
+  <!-- Search & Filter Bar -->
+  <div class="filter-bar">
+    <div class="search-input-wrapper">
+      <svg class="search-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+      </svg>
+      <input 
+        type="text" 
+        class="search-field" 
+        placeholder="Search by Order ID, SKU, or Customer ID..." 
+        [ngModel]="searchQuery()" 
+        (ngModelChange)="searchQuery.set($event); currentPage.set(1)" />
+    </div>
+
+    <div class="filter-controls-right">
+      <select 
+        class="filter-select" 
+        [ngModel]="selectedStatusFilter()" 
+        (ngModelChange)="selectedStatusFilter.set($event); currentPage.set(1)">
+        <option value="ALL">All Statuses</option>
+        <option value="0">Pending</option>
+        <option value="1">Stock Reserved</option>
+        <option value="2">Stock Reservation Failed</option>
+        <option value="3">Paid</option>
+        <option value="4">Cancelled</option>
+        <option value="5">Completed</option>
+      </select>
+
+      <select 
+        class="filter-select" 
+        [ngModel]="pageSize()" 
+        (ngModelChange)="pageSize.set(+$event); currentPage.set(1)">
+        @for (opt of pageSizeOptions; track opt) {
+          <option [value]="opt">{{ opt }} per page</option>
+        }
+      </select>
+    </div>
+  </div>
+
+  @if (errorMessage()) {
+    <div class="alert-error">{{ errorMessage() }}</div>
+  }
+
+  @if (isLoading()) {
+    <div class="loading-state">Loading orders...</div>
+  } @else {
+    <!-- 1. Table View -->
+    @if (viewMode() === 'table') {
+      <div class="table-wrapper">
+        <table class="user-table">
+          <thead>
+            <tr>
+              <th class="cursor-pointer" (click)="toggleSort('id')">
+                <div class="th-content">
+                  Order ID
+                  <span class="sort-indicator">{{ sortColumn() === 'id' ? (sortDirection() === 'asc' ? '↑' : '↓') : '↕' }}</span>
+                </div>
+              </th>
+              @if (isAdmin()) {
+                <th class="cursor-pointer" (click)="toggleSort('customer')">
+                  <div class="th-content">
+                    Customer ID
+                    <span class="sort-indicator">{{ sortColumn() === 'customer' ? (sortDirection() === 'asc' ? '↑' : '↓') : '↕' }}</span>
+                  </div>
+                </th>
+              }
+              <th class="cursor-pointer" (click)="toggleSort('sku')">
+                <div class="th-content">
+                  SKU
+                  <span class="sort-indicator">{{ sortColumn() === 'sku' ? (sortDirection() === 'asc' ? '↑' : '↓') : '↕' }}</span>
+                </div>
+              </th>
+              <th class="cursor-pointer" (click)="toggleSort('items')">
+                <div class="th-content">
+                  Items
+                  <span class="sort-indicator">{{ sortColumn() === 'items' ? (sortDirection() === 'asc' ? '↑' : '↓') : '↕' }}</span>
+                </div>
+              </th>
+              <th class="cursor-pointer" (click)="toggleSort('total')">
+                <div class="th-content">
+                  Total
+                  <span class="sort-indicator">{{ sortColumn() === 'total' ? (sortDirection() === 'asc' ? '↑' : '↓') : '↕' }}</span>
+                </div>
+              </th>
+              <th class="cursor-pointer" (click)="toggleSort('status')">
+                <div class="th-content">
+                  Status
+                  <span class="sort-indicator">{{ sortColumn() === 'status' ? (sortDirection() === 'asc' ? '↑' : '↓') : '↕' }}</span>
+                </div>
+              </th>
+              <th class="text-right">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (order of paginatedOrders(); track order.id) {
+              <tr>
+                <td>
+                  <span class="font-mono text-dark font-semibold">#{{ order.id.slice(0, 8) }}</span>
+                </td>
+                @if (isAdmin()) {
+                  <td>
+                    <span class="customer-tag" [title]="order.customerId">{{ order.customerId.slice(0, 8) }}...</span>
+                  </td>
+                }
+                <td>
+                  <span class="sku-pill" [title]="order.items ? order.items.map(i => i.sku).join(', ') : ''">
+                    {{ getSkusSummary(order) }}
+                  </span>
+                </td>
+                <td>{{ order.items?.length || 0 }} items</td>
+                <td class="font-semibold text-dark">${{ order.totalAmount | number:'1.2-2' }}</td>
+                <td>
+                  <span class="badge" [ngClass]="getStatusBadgeClass(order.status)">
+                    {{ getStatusLabel(order.status) }}
+                  </span>
+                </td>
+                <td class="text-right">
+                  <div class="action-buttons-group">
+                    <button type="button" class="btn-action-view" (click)="viewDetails(order)">
+                      Details
+                    </button>
+                    @if (canCancel(order.status)) {
+                      <button type="button" class="btn-action-cancel" (click)="cancelOrder(order)">
+                        Cancel
+                      </button>
+                    }
+                  </div>
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td [attr.colspan]="isAdmin() ? 7 : 6" class="text-center py-4 text-muted">
+                  <div class="empty-state">
+                    <p>No orders found matching your filters.</p>
+                    <button type="button" class="btn-reset" (click)="resetFilters()">Clear Filters</button>
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+
+        <!-- Table Pagination Footer -->
+        <div class="pagination-footer">
+          <span class="pagination-info">Page {{ currentPage() }} of {{ totalPages() }}</span>
+          <div class="pagination-controls">
+            <button 
+              type="button" 
+              class="pagination-btn" 
+              [disabled]="currentPage() === 1" 
+              (click)="setPage(currentPage() - 1)">
+              Previous
+            </button>
+            <button 
+              type="button" 
+              class="pagination-btn" 
+              [disabled]="currentPage() === totalPages()" 
+              (click)="setPage(currentPage() + 1)">
+              Next
+            </button>
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- 2. Grid View -->
+    @if (viewMode() === 'grid') {
+      <div class="orders-grid">
+        @for (order of paginatedOrders(); track order.id) {
+          <div class="order-card">
+            <div class="card-header">
+              <span class="font-mono text-dark font-semibold">#{{ order.id.slice(0, 8) }}</span>
+              <span class="badge" [ngClass]="getStatusBadgeClass(order.status)">
+                {{ getStatusLabel(order.status) }}
+              </span>
+            </div>
+
+            <div class="card-body">
+              @if (isAdmin()) {
+                <div class="order-info-row">
+                  <span class="text-xs text-muted">Customer:</span>
+                  <span class="customer-tag">{{ order.customerId.slice(0, 8) }}...</span>
+                </div>
+              }
+              <div class="order-info-row">
+                <span class="text-xs text-muted">SKU:</span>
+                <span class="sku-pill">{{ getSkusSummary(order) }}</span>
+              </div>
+              <div class="order-info-row">
+                <span class="text-xs text-muted">Items:</span>
+                <span class="font-medium text-xs">{{ order.items?.length || 0 }} items</span>
+              </div>
+              <div class="order-info-row">
+                <span class="text-xs text-muted">Total:</span>
+                <span class="font-semibold text-dark">${{ order.totalAmount | number:'1.2-2' }}</span>
+              </div>
+            </div>
+
+            <div class="order-card-footer">
+              <button type="button" class="btn-action-view flex-1" (click)="viewDetails(order)">
+                Details
+              </button>
+              @if (canCancel(order.status)) {
+                <button type="button" class="btn-action-cancel flex-1" (click)="cancelOrder(order)">
+                  Cancel
+                </button>
+              }
+            </div>
+          </div>
+        } @empty {
+          <div class="empty-state w-full" style="grid-column: 1/-1;">
+            <p>No orders found matching your filters.</p>
+            <button type="button" class="btn-reset" (click)="resetFilters()">Clear Filters</button>
+          </div>
+        }
+      </div>
+
+      <!-- Grid Pagination Footer -->
+      <div class="pagination-footer-grid">
+        <button 
+          type="button" 
+          class="pagination-btn" 
+          [disabled]="currentPage() === 1" 
+          (click)="setPage(currentPage() - 1)">
+          Previous
+        </button>
+        <span class="page-number">Page {{ currentPage() }} of {{ totalPages() }}</span>
+        <button 
+          type="button" 
+          class="pagination-btn" 
+          [disabled]="currentPage() === totalPages()" 
+          (click)="setPage(currentPage() + 1)">
+          Next
+        </button>
+      </div>
+    }
+  }
+</div>
+
+<!-- Order Line Items Details Modal with Status Stepper -->
+@if (selectedOrder()) {
+  <div class="modal-backdrop" (click)="closeDetails()">
+    <div class="modal-card modal-lg print-container" (click)="$event.stopPropagation()">
+      <div class="modal-header-row">
+        <div>
+          <h3 class="modal-title">Order #{{ selectedOrder()?.id }}</h3>
+          @if (selectedOrder()?.orderDate) {
+            <span class="text-xs text-muted">Placed on {{ selectedOrder()?.orderDate | date:'medium' }}</span>
+          }
+        </div>
+        <div class="flex items-center gap-1">
+          <button type="button" class="btn-print no-print" (click)="printInvoice()" title="Print Receipt">
+            <svg fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0 1 10.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0 .229 2.523a1.125 1.125 0 0 1-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0 0 21 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 0 0-1.913-.247M6.34 18H5.25A2.25 2.25 0 0 1 3 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 0 1 1.913-.247m10.5 0a48.536 48.536 0 0 0-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.656h10.5Z" />
+            </svg>
+          </button>
+          <button type="button" class="btn-close-popup no-print" (click)="closeDetails()">✕</button>
+        </div>
+      </div>
+
+      <!-- Fulfillment Stepper Pipeline -->
+      @if (!isFailedOrCancelled(selectedOrder()!.status)) {
+        <div class="status-stepper-wrapper no-print">
+          <div class="stepper-track">
+            <div class="stepper-step" [class.completed]="getStepProgress(selectedOrder()!.status) >= 1">
+              <div class="step-circle">1</div>
+              <span class="step-text">Pending</span>
+            </div>
+            <div class="stepper-line" [class.filled]="getStepProgress(selectedOrder()!.status) >= 2"></div>
+            <div class="stepper-step" [class.completed]="getStepProgress(selectedOrder()!.status) >= 2">
+              <div class="step-circle">2</div>
+              <span class="step-text">Stock Reserved</span>
+            </div>
+            <div class="stepper-line" [class.filled]="getStepProgress(selectedOrder()!.status) >= 3"></div>
+            <div class="stepper-step" [class.completed]="getStepProgress(selectedOrder()!.status) >= 3">
+              <div class="step-circle">3</div>
+              <span class="step-text">Paid</span>
+            </div>
+            <div class="stepper-line" [class.filled]="getStepProgress(selectedOrder()!.status) >= 4"></div>
+            <div class="stepper-step" [class.completed]="getStepProgress(selectedOrder()!.status) >= 4">
+              <div class="step-circle">4</div>
+              <span class="step-text">Completed</span>
+            </div>
+          </div>
+        </div>
+      } @else {
+        <div class="status-alert-banner alert-error mb-1">
+          <strong>Order Issue:</strong> Status marked as {{ getStatusLabel(selectedOrder()!.status) }}.
+        </div>
+      }
+
+      <div class="order-summary-box">
+        <div>
+          <strong>Status:</strong> 
+          <span class="badge ml-1" [ngClass]="getStatusBadgeClass(selectedOrder()!.status)">
+            {{ getStatusLabel(selectedOrder()!.status) }}
+          </span>
+        </div>
+        @if (isAdmin()) {
+          <div><strong>Customer:</strong> {{ selectedOrder()?.customerId }}</div>
+        }
+        <div><strong>Total:</strong> ${{ selectedOrder()?.totalAmount | number:'1.2-2' }}</div>
+      </div>
+
+      <h4 class="line-items-title">Ordered Items & SKUs</h4>
+      <div class="order-items-list">
+        @for (item of selectedOrder()?.items; track item.productId) {
+          <div class="order-item-row">
+            <div>
+              <div class="font-medium text-dark">{{ item.productName || item.sku }}</div>
+              <div class="text-xs text-muted">SKU: <strong class="text-dark">{{ item.sku }}</strong> | Qty: {{ item.quantity }}</div>
+            </div>
+            <div class="font-semibold text-dark">
+              ${{ (item.unitPrice * item.quantity) | number:'1.2-2' }}
+            </div>
+          </div>
+        }
+      </div>
+
+      <div class="modal-actions no-print">
+        <button type="button" class="btn-cancel" (click)="closeDetails()">Close</button>
+      </div>
+    </div>
+  </div>
+}

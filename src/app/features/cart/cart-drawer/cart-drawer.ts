@@ -3,6 +3,8 @@ import { Component, inject, OnInit } from '@angular/core';
 import { CartService } from '../cart.service';
 import { RouteConfigLoadEnd, Router } from '@angular/router';
 import { CartItem } from '../../../core/models/cart.model';
+import { OrderService } from '../../orders/order.service';
+import { AuthService } from '../../auth/auth.service';
 
 @Component({
   selector: 'app-cart-drawer',
@@ -14,10 +16,13 @@ export class CartDrawer implements OnInit {
   cartService = inject(CartService);
   private router = inject(Router);
 
+  private orderService = inject(OrderService);
+  private authService = inject(AuthService);
+
   ngOnInit(): void {
-    // this.cartService.getCart().subscribe({
-    //   error:() => {}
-    // });
+    this.cartService.getCart().subscribe({
+      error:() => {}
+    });
   }
 
   increaseQty(item: CartItem): void {
@@ -49,7 +54,36 @@ export class CartDrawer implements OnInit {
   }
 
   goToCheckout(): void {
-    this.cartService.closeDrawer();
-    this.router.navigate(['/checkout']);
+  const user = this.authService.currentUser();
+  const items = this.cartService.cartItems();
+
+  if (!user?.userId) {
+    alert('Please log in to place an order.');
+    return;
   }
+
+  if (items.length === 0) return;
+
+  const orderPayload = {
+    customerId: user.userId,
+    items: items.map(i => ({
+      productId: String(i.productId),
+      sku: (i as any).sku || 'DEFAULT-SKU',
+      unitPrice: i.unitPrice,
+      quantity: i.quantity
+    }))
+  };
+
+  this.orderService.createOrder(orderPayload).subscribe({
+    next: () => {
+      this.cartService.clearCart().subscribe();
+      this.cartService.closeDrawer();
+      this.router.navigate(['/orders']);
+    },
+    error: (err) => {
+      console.error('Order placement failed:', err);
+      alert('Failed to place order. Please try again.');
+    }
+  });
+}
 }
