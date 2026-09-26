@@ -1,13 +1,13 @@
-import { Component, ElementRef, HostListener, inject, signal } from '@angular/core';
+import { Component, ElementRef, HostListener, inject, signal, computed } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthService } from '../../../../features/auth/auth.service';
-import { CartDrawer } from '../../../../features/cart/cart-drawer/cart-drawer';
 import { CartService } from '../../../../features/cart/cart.service';
+import { ToastService } from '../../../../core/services/toast.service';
 
 @Component({
   selector: 'app-layout',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, CartDrawer],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive],
   templateUrl: './layout.html',
   styleUrl: './layout.css',
 })
@@ -15,11 +15,13 @@ export class Layout {
   private authService = inject(AuthService);
   private router = inject(Router);
   private elementRef = inject(ElementRef);
+  private toast = inject(ToastService);
   cartService = inject(CartService);
 
-  // Directly references the currentUser signal managed by AuthService
   user = this.authService.currentUser;
   isProfileOpen = signal<boolean>(false);
+
+  isAdmin = computed(() => this.user()?.role?.toLowerCase() === 'admin');
 
   toggleProfile(): void {
     this.isProfileOpen.update((open) => !open);
@@ -36,17 +38,18 @@ export class Layout {
     }
   }
 
-onLogout(): void {
-  this.isProfileOpen.set(false);
+  onLogout(): void {
+    this.isProfileOpen.set(false);
 
-  this.authService.logout().subscribe({
-    next: () => {
-      this.router.navigate(['/login']);
-    },
-    error: () => {
-      // Even if server returns 500/400, session was cleared by finalize()
-      this.router.navigate(['/login']);
-    }
-  });
-}
+    this.authService.logout().subscribe({
+      next: () => {
+        this.toast.info('You have been signed out successfully.', 'Signed Out');
+        this.router.navigate(['/login']);
+      },
+      error: () => {
+        this.toast.info('You have been signed out.', 'Signed Out');
+        this.router.navigate(['/login']);
+      }
+    });
+  }
 }
